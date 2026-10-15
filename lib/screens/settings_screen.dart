@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
+import '../models.dart';
 import '../providers/settings_provider.dart';
 import '../providers/sync_provider.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 import 'supabase_debug_screen.dart';
+import 'manage_tabs_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final UserData? user;
+  const SettingsScreen({super.key, this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +23,25 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: Text(t.t('settings'))),
       body: ListView(
         children: [
+          // ═══ التبويبات المخصصة ═══
+          if (user != null) ...[
+            const _Header('التبويبات المخصصة'),
+            ListTile(
+              leading: const Icon(Icons.dashboard_customize),
+              title: const Text('إدارة التبويبات المخصصة'),
+              subtitle: Text('${user!.customTabs.length} تبويب'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ManageTabsScreen(user: user!),
+                ),
+              ),
+            ),
+            const Divider(),
+          ],
+
+          // ═══ المظهر ═══
           const _Header('المظهر'),
           SwitchListTile(
             title: Text(t.t('dark_mode')),
@@ -37,14 +59,14 @@ class SettingsScreen extends StatelessWidget {
                 DropdownMenuItem(value: 'en', child: Text('English')),
               ],
               onChanged: (v) {
-                if (v != null) {
-                  s.setLang(v);
-                }
+                if (v != null) s.setLang(v);
               },
             ),
           ),
+
+          // ═══ التبويبات الأساسية ═══
           const Divider(),
-          const _Header('التبويبات'),
+          const _Header('التبويبات الأساسية'),
           SwitchListTile(
             title: Text(t.t('prayer')),
             value: s.showPrayer,
@@ -88,16 +110,11 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               );
-              if (r != null && r.trim().isNotEmpty) {
-                s.setSectionsLabel(r.trim());
-              }
+              if (r != null && r.trim().isNotEmpty) s.setSectionsLabel(r.trim());
             },
           ),
-          SwitchListTile(
-            title: const Text('ترتيب الأيام (تصاعدي)'),
-            value: s.ascendingOrder,
-            onChanged: s.setAscending,
-          ),
+
+          // ═══ الإشعارات ═══
           const Divider(),
           const _Header('الإشعارات'),
           SwitchListTile(
@@ -107,11 +124,7 @@ class SettingsScreen extends StatelessWidget {
               s.setNotifEnabled(v);
               if (v) {
                 await NotificationService.scheduleDaily(
-                  s.notifyHour,
-                  s.notifyMinute,
-                  'تذكير',
-                  'لا تنسَ متابعة عباداتك',
-                );
+                  s.notifyHour, s.notifyMinute, 'تذكير', 'لا تنسَ متابعة عباداتك');
               } else {
                 await NotificationService.cancelAll();
               }
@@ -133,11 +146,7 @@ class SettingsScreen extends StatelessWidget {
                 s.setNotifTime(r.hour, r.minute);
                 if (s.notificationsEnabled) {
                   await NotificationService.scheduleDaily(
-                    r.hour,
-                    r.minute,
-                    'تذكير',
-                    'حان وقت العبادات',
-                  );
+                      r.hour, r.minute, 'تذكير', 'حان وقت العبادات');
                 }
               }
             },
@@ -147,6 +156,8 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('اختبار إشعار'),
             onTap: () => NotificationService.showTest(),
           ),
+
+          // ═══ المزامنة ═══
           const Divider(),
           const _Header('المزامنة'),
           ListTile(

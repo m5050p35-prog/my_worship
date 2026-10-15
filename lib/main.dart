@@ -85,19 +85,86 @@ class SplashGate extends StatefulWidget {
 
 class _SplashGateState extends State<SplashGate> {
   UserData? _user;
+  bool _loading = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _tryAutoLogin();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  تسجيل دخول تلقائي
+  // ═══════════════════════════════════════════════════════════════
+  Future<void> _tryAutoLogin() async {
+    try {
+      final email = await Storage.loadSession();
+      if (email == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+
+      // 1) من التخزين المحلي أولاً (سريع)
+      final local = await Storage.loadUser(email);
+      if (local != null) {
+        if (mounted) {
+          setState(() {
+            _user = local;
+            _loading = false;
+          });
+        }
+        _refreshFromCloud(email);
+        return;
+      }
+
+      // 2) من السحابة
+      try {
+        final cloud = await SupabaseService.loadUser(email);
+        if (cloud != null) {
+          await Storage.saveUser(cloud);
+          if (mounted) {
+            setState(() {
+              _user = cloud;
+              _loading = false;
+            });
+          }
+          return;
+        }
+      } catch (_) {}
+
+      // فشل كل شيء — امسح الجلسة
+      await Storage.clearSession();
+      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      debugPrint('auto-login failed: $e');
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _refreshFromCloud(String email) async {
+    try {
+      final cloud = await SupabaseService.loadUser(email);
+      if (cloud != null && mounted) {
+        await Storage.saveUser(cloud);
+        setState(() => _user = cloud);
+      }
+    } catch (_) {}
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  تسجيل الدخول اليدوي
+  // ═══════════════════════════════════════════════════════════════
   Future<String?> _onSubmit(String email) async {
     try {
       final u = await SupabaseService.loadUser(email);
       if (u != null) {
-        _setUser(u);
+        await _setUser(u, email);
         return null;
       }
     } catch (e) {
-      debugPrint('cloud load failed: $e');
       final local = await Storage.loadUser(email);
       if (local != null) {
-        _setUser(local);
+        await _setUser(local, email);
         return null;
       }
       return 'تعذّر الاتصال: $e';
@@ -105,40 +172,52 @@ class _SplashGateState extends State<SplashGate> {
 
     final local = await Storage.loadUser(email);
     if (local != null) {
-      _setUser(local);
+      await _setUser(local, email);
       return null;
     }
 
     try {
-      final newUser = UserData(
-        identifier: email,
-        name: email.split('@').first,
-      );
+      final newUser =
+          UserData(identifier: email, name: email.split('@').first);
       final (ok, err, saved) = await SupabaseService.saveUserWithResult(newUser);
-      if (!ok) {
-        return 'فشل الإنشاء: $err';
-      }
-      await Storage.saveUser(saved!);
-      _setUser(saved);
+      if (!ok) return 'فشل الإنشاء: $err';
+      await _setUser(saved!, email);
       return null;
     } catch (e) {
       return 'فشل الإنشاء: $e';
     }
   }
 
-  void _setUser(UserData u) {
-    setState(() => _user = u);
-    Storage.saveUser(u);
+  Future<void> _setUser(UserData u, String email) async {
+    await Storage.saveUser(u);
+    await Storage.saveSession(email);
+    if (mounted) setState(() => _user = u);
+  }
+
+  Future<void> _logout() async {
+    await Storage.clearSession();
+    if (mounted) setState(() => _user = null);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_user == null) {
-      return LoginScreen(onSubmit: _onSubmit);
+    if (_loading) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.mosque, size: 80, color: Colors.teal),
+              SizedBox(height: 20),
+              CircularProgressIndicator(),
+            ],
+          ),
+        ),
+      );
     }
-    return MainShell(
-      user: _user!,
-      onLogout: () => setState(() => _user = null),
-    );
+
+    if (_user == null) return LoginScreen(onSubmit: _onSubmit);
+
+    return MainShell(user: _user!, onLogout: _logout);
   }
 }

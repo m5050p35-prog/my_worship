@@ -17,47 +17,28 @@ class SectionsBody extends StatefulWidget {
 }
 
 class _SectionsBodyState extends State<SectionsBody> {
-  void _scheduleResort(Section s) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() {
-        final incomplete = s.days.where((d) => !d.isDone).toList();
-        final complete = s.days.where((d) => d.isDone).toList();
-        s.days
-          ..clear()
-          ..addAll(incomplete)
-          ..addAll(complete);
-      });
-    });
-  }
-
-  Future<bool?> _confirm({required String title, required String body}) {
-    return showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('تأكيد'),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<bool?> _confirm(String title, String body) => showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('تأكيد'),
+            ),
+          ],
+        ),
+      );
 
   Future<void> _resetAll() async {
     if (widget.sections.isEmpty) return;
-    final ok = await _confirm(
-      title: 'إعادة تعيين الأقسام',
-      body: 'هل تريد حذف جميع الأقسام بكل أيامها؟',
-    );
+    final ok = await _confirm('حذف كل الأقسام', 'هل تريد حذف جميع الأقسام بكل أيامها؟');
     if (ok != true) return;
     setState(() => widget.sections.clear());
     widget.onChanged();
@@ -69,7 +50,6 @@ class _SectionsBodyState extends State<SectionsBody> {
       backgroundColor: Colors.transparent,
       body: Column(
         children: [
-          // ═══ Header ═══
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
             child: Row(
@@ -90,7 +70,6 @@ class _SectionsBodyState extends State<SectionsBody> {
               ],
             ),
           ),
-          // ═══ List ═══
           Expanded(
             child: widget.sections.isEmpty
                 ? const Center(
@@ -131,6 +110,36 @@ class _SectionsBodyState extends State<SectionsBody> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ═══ قائمة الترتيب ═══
+            PopupMenuButton<SortMode>(
+              icon: const Icon(Icons.sort),
+              tooltip: 'ترتيب الأيام',
+              onSelected: (m) {
+                setState(() {
+                  s.sortMode = m;
+                  s.applySort();
+                });
+                widget.onChanged();
+              },
+              itemBuilder: (_) => SortMode.values
+                  .map((m) => PopupMenuItem(
+                        value: m,
+                        child: Row(
+                          children: [
+                            Icon(
+                              s.sortMode == m
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_unchecked,
+                              size: 18,
+                              color: Colors.teal,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(m.label),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
               tooltip: 'حذف القسم',
@@ -162,10 +171,11 @@ class _SectionsBodyState extends State<SectionsBody> {
       leading: Checkbox(
         value: d.isDone,
         onChanged: (v) {
-          final wasDone = d.isDone;
-          setState(() => d.isDone = v ?? false);
+          setState(() {
+            d.isDone = v ?? false;
+            s.applySort();
+          });
           widget.onChanged();
-          if (wasDone != d.isDone) _scheduleResort(s);
         },
       ),
       title: Text(
@@ -180,7 +190,6 @@ class _SectionsBodyState extends State<SectionsBody> {
         children: [
           IconButton(
             icon: const Icon(Icons.edit, size: 20),
-            tooltip: 'ملاحظة',
             onPressed: () async {
               final r = await showNoteDialog(context, d.note);
               if (r != null) {
@@ -191,7 +200,6 @@ class _SectionsBodyState extends State<SectionsBody> {
           ),
           IconButton(
             icon: const Icon(Icons.close, size: 20, color: Colors.red),
-            tooltip: 'حذف اليوم',
             onPressed: () => _deleteDay(s, d),
           ),
         ],
@@ -199,32 +207,30 @@ class _SectionsBodyState extends State<SectionsBody> {
     );
   }
 
-  Future<void> _addDay(Section s) async {
+  void _addDay(Section s) {
     final today = DateTime.now();
+    final next = s.days.isEmpty
+        ? 1
+        : s.days.map((e) => e.dayNumber).reduce((a, b) => a > b ? a : b) + 1;
     setState(() {
       s.days.add(SectionDay(
-        dayNumber: s.days.length + 1,
+        dayNumber: next,
         date: today.toIso8601String().substring(0, 10),
       ));
+      s.applySort();
     });
     widget.onChanged();
   }
 
   Future<void> _deleteDay(Section s, SectionDay d) async {
-    final ok = await _confirm(
-      title: 'حذف اليوم',
-      body: 'هل تريد حذف اليوم رقم ${d.dayNumber}؟',
-    );
+    final ok = await _confirm('حذف اليوم', 'هل تريد حذف اليوم رقم ${d.dayNumber}؟');
     if (ok != true) return;
     setState(() => s.days.remove(d));
     widget.onChanged();
   }
 
   Future<void> _deleteSection(Section s) async {
-    final ok = await _confirm(
-      title: 'حذف القسم',
-      body: 'هل تريد حذف "${s.name}" بكل أيامه؟',
-    );
+    final ok = await _confirm('حذف القسم', 'هل تريد حذف "${s.name}" بكل أيامه؟');
     if (ok != true) return;
     setState(() => widget.sections.remove(s));
     widget.onChanged();
@@ -291,19 +297,15 @@ class _SectionsBodyState extends State<SectionsBody> {
       n,
       (i) => SectionDay(
         dayNumber: i + 1,
-        date: today
-            .add(Duration(days: i))
-            .toIso8601String()
-            .substring(0, 10),
+        date:
+            today.add(Duration(days: i)).toIso8601String().substring(0, 10),
       ),
     );
 
     setState(() {
       widget.sections.add(Section(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: nameCtrl.text.trim().isEmpty
-            ? 'قسم'
-            : nameCtrl.text.trim(),
+        name: nameCtrl.text.trim().isEmpty ? 'قسم' : nameCtrl.text.trim(),
         note: noteCtrl.text.trim(),
         days: days,
       ));
