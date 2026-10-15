@@ -8,8 +8,11 @@ if (localPropertiesFile.exists()) {
 
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
+def hasReleaseKeystore = false
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    def storeFile = file(keystoreProperties['storeFile'])
+    hasReleaseKeystore = storeFile.exists()
 }
 
 apply plugin: 'com.android.application'
@@ -41,7 +44,7 @@ android {
 
     signingConfigs {
         release {
-            if (keystorePropertiesFile.exists()) {
+            if (hasReleaseKeystore) {
                 keyAlias = keystoreProperties['keyAlias']
                 keyPassword = keystoreProperties['keyPassword']
                 storeFile = file(keystoreProperties['storeFile'])
@@ -52,7 +55,13 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.release
+            // ذكي: استخدم توقيع release إن وُجد، وإلا استخدم debug
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.release
+            } else {
+                signingConfig = signingConfigs.debug
+                println "⚠️ No release keystore found — using debug signing"
+            }
             minifyEnabled = false
             shrinkResources = false
         }
