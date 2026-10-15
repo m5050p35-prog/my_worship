@@ -5,7 +5,7 @@ class AppLocalizations {
   AppLocalizations(this.locale);
 
   static AppLocalizations of(BuildContext c) =>
-    Localizations.of<AppLocalizations>(c, AppLocalizations)!;
+      Localizations.of<AppLocalizations>(c, AppLocalizations)!;
 
   static const supportedLocales = [Locale('ar'), Locale('en')];
   static const localizationsDelegates = <LocalizationsDelegate<dynamic>>[
@@ -19,7 +19,7 @@ class AppLocalizations {
   String t(String key) => (isAr ? _ar : _en)[key] ?? key;
 
   static const _ar = {
-    'app_name': 'عباداتي',
+    'app_name': 'الاتزان',
     'login': 'تسجيل الدخول',
     'signup': 'إنشاء حساب',
     'email': 'البريد الإلكتروني',
@@ -31,6 +31,7 @@ class AppLocalizations {
     'gmail_only': 'يُقبل فقط بريد @gmail.com',
     'prayer': 'صلاتك',
     'sections': 'الأقسام',
+    'lessons': 'الدروس',
     'workout': 'التمارين',
     'fasting': 'الصوم',
     'settings': 'الإعدادات',
@@ -69,7 +70,7 @@ class AppLocalizations {
   };
 
   static const _en = {
-    'app_name': 'MyWorship',
+    'app_name': 'Al-Etizan',
     'login': 'Login',
     'signup': 'Sign Up',
     'email': 'Email',
@@ -81,6 +82,7 @@ class AppLocalizations {
     'gmail_only': 'Only @gmail.com is accepted',
     'prayer': 'Prayer',
     'sections': 'Sections',
+    'lessons': 'Lessons',
     'workout': 'Workout',
     'fasting': 'Fasting',
     'settings': 'Settings',

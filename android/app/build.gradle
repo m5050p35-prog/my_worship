@@ -9,6 +9,8 @@ if (localPropertiesFile.exists()) {
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
 def hasReleaseKeystore = false
+def hasCustomDebugKeystore = false
+
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
     def storeFile = file(keystoreProperties['storeFile'])
@@ -38,8 +40,8 @@ android {
         applicationId = "com.yourname.my_worship"
         minSdk = 23
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     signingConfigs {
@@ -51,19 +53,33 @@ android {
                 storePassword = keystoreProperties['storePassword']
             }
         }
+        // مفتاح ثابت للـ debug (يُستخدم عندما لا يوجد keystore)
+        debug {
+            if (hasReleaseKeystore) {
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
+                storeFile = file(keystoreProperties['storeFile'])
+                storePassword = keystoreProperties['storePassword']
+            }
+        }
     }
 
     buildTypes {
         release {
-            // ذكي: استخدم توقيع release إن وُجد، وإلا استخدم debug
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.release
+                println "✅ Using RELEASE keystore"
             } else {
                 signingConfig = signingConfigs.debug
-                println "⚠️ No release keystore found — using debug signing"
+                println "⚠️ No keystore — using debug signing"
             }
             minifyEnabled = false
             shrinkResources = false
+        }
+        debug {
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.release
+            }
         }
     }
 }

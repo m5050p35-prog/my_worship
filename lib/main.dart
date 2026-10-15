@@ -57,7 +57,7 @@ class App extends StatelessWidget {
       ],
       child: Consumer<SettingsProvider>(
         builder: (_, s, __) => MaterialApp(
-          title: 'MyWorship',
+          title: 'الاتزان',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
@@ -93,9 +93,6 @@ class _SplashGateState extends State<SplashGate> {
     _tryAutoLogin();
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  //  تسجيل دخول تلقائي
-  // ═══════════════════════════════════════════════════════════════
   Future<void> _tryAutoLogin() async {
     try {
       final email = await Storage.loadSession();
@@ -104,7 +101,6 @@ class _SplashGateState extends State<SplashGate> {
         return;
       }
 
-      // 1) من التخزين المحلي أولاً (سريع)
       final local = await Storage.loadUser(email);
       if (local != null) {
         if (mounted) {
@@ -117,7 +113,6 @@ class _SplashGateState extends State<SplashGate> {
         return;
       }
 
-      // 2) من السحابة
       try {
         final cloud = await SupabaseService.loadUser(email);
         if (cloud != null) {
@@ -132,7 +127,6 @@ class _SplashGateState extends State<SplashGate> {
         }
       } catch (_) {}
 
-      // فشل كل شيء — امسح الجلسة
       await Storage.clearSession();
       if (mounted) setState(() => _loading = false);
     } catch (e) {
@@ -151,9 +145,6 @@ class _SplashGateState extends State<SplashGate> {
     } catch (_) {}
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  //  تسجيل الدخول اليدوي
-  // ═══════════════════════════════════════════════════════════════
   Future<String?> _onSubmit(String email) async {
     try {
       final u = await SupabaseService.loadUser(email);
