@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  SortMode — أوضاع الترتيب
+//  SortMode
 // ═══════════════════════════════════════════════════════════════
 enum SortMode { ascending, descending, incompleteFirst, completeFirst }
 
@@ -20,6 +20,89 @@ extension SortModeExt on SortMode {
   static SortMode fromKey(String? k) => SortMode.values.firstWhere(
         (e) => e.name == k,
         orElse: () => SortMode.incompleteFirst,
+      );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Lesson — درس واحد
+// ═══════════════════════════════════════════════════════════════
+class Lesson {
+  final String id;
+  String title;
+  String note;
+  bool isDone;
+
+  Lesson({
+    required this.id,
+    required this.title,
+    this.note = '',
+    this.isDone = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'note': note,
+        'is_done': isDone,
+      };
+
+  factory Lesson.fromJson(Map<String, dynamic> j) => Lesson(
+        id: j['id'] ?? '',
+        title: j['title'] ?? '',
+        note: j['note'] ?? '',
+        isDone: j['is_done'] ?? false,
+      );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LessonDay — يوم من أيام الأسبوع مع دروسه
+// ═══════════════════════════════════════════════════════════════
+class LessonDay {
+  final int dayOfWeek; // 0=الأحد .. 6=السبت
+  List<Lesson> lessons;
+
+  LessonDay({
+    required this.dayOfWeek,
+    List<Lesson>? lessons,
+  }) : lessons = lessons ?? [];
+
+  static const dayNames = [
+    'الأحد',
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
+  ];
+
+  static const dayShortNames = [
+    'أحد',
+    'اثنين',
+    'ثلاثاء',
+    'أربعاء',
+    'خميس',
+    'جمعة',
+    'سبت',
+  ];
+
+  String get dayName => dayNames[dayOfWeek];
+  String get dayShortName => dayShortNames[dayOfWeek];
+
+  int get doneCount => lessons.where((l) => l.isDone).length;
+  int get total => lessons.length;
+  bool get isComplete => lessons.isNotEmpty && doneCount == total;
+
+  Map<String, dynamic> toJson() => {
+        'day_of_week': dayOfWeek,
+        'lessons': lessons.map((l) => l.toJson()).toList(),
+      };
+
+  factory LessonDay.fromJson(Map<String, dynamic> j) => LessonDay(
+        dayOfWeek: j['day_of_week'] ?? 0,
+        lessons: (j['lessons'] as List? ?? [])
+            .map((e) => Lesson.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
       );
 }
 
@@ -356,7 +439,7 @@ class FastingConfig {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  UserData — مع SortModes لكل تبويب
+//  UserData
 // ═══════════════════════════════════════════════════════════════
 class UserData {
   String? id;
@@ -370,6 +453,7 @@ class UserData {
   List<PrayerDay> prayerDays;
   List<Section> sections;
   List<CustomTab> customTabs;
+  List<LessonDay> lessonDays;
   List<WorkoutEntry> workoutEntries;
   WorkoutConfig workoutConfig;
   List<FastingEntry> fastingEntries;
@@ -385,6 +469,7 @@ class UserData {
     List<PrayerDay>? prayerDays,
     List<Section>? sections,
     List<CustomTab>? customTabs,
+    List<LessonDay>? lessonDays,
     List<WorkoutEntry>? workoutEntries,
     WorkoutConfig? workoutConfig,
     List<FastingEntry>? fastingEntries,
@@ -392,10 +477,24 @@ class UserData {
   })  : prayerDays = prayerDays ?? [],
         sections = sections ?? [],
         customTabs = customTabs ?? [],
+        lessonDays = lessonDays ?? _emptyWeek(),
         workoutEntries = workoutEntries ?? [],
         workoutConfig = workoutConfig ?? WorkoutConfig(),
         fastingEntries = fastingEntries ?? [],
         fastingConfig = fastingConfig ?? FastingConfig();
+
+  /// يضمن وجود 7 أيام دائماً
+  static List<LessonDay> _emptyWeek() =>
+      List.generate(7, (i) => LessonDay(dayOfWeek: i));
+
+  /// يضمن وجود 7 أيام (للتحميل من JSON)
+  static List<LessonDay> normalizeWeek(List<LessonDay> input) {
+    final map = {for (final d in input) d.dayOfWeek: d};
+    return List.generate(
+      7,
+      (i) => map[i] ?? LessonDay(dayOfWeek: i),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -407,6 +506,7 @@ class UserData {
         'prayer_days': prayerDays.map((e) => e.toJson()).toList(),
         'sections': sections.map((e) => e.toJson()).toList(),
         'custom_tabs': customTabs.map((e) => e.toJson()).toList(),
+        'lesson_days': lessonDays.map((e) => e.toJson()).toList(),
         'workout_entries': workoutEntries.map((e) => e.toJson()).toList(),
         'workout_config': workoutConfig.toJson(),
         'fasting_entries': fastingEntries.map((e) => e.toJson()).toList(),

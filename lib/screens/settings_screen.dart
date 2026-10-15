@@ -23,7 +23,6 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: Text(t.t('settings'))),
       body: ListView(
         children: [
-          // ═══ التبويبات المخصصة ═══
           if (user != null) ...[
             const _Header('التبويبات المخصصة'),
             ListTile(
@@ -41,7 +40,6 @@ class SettingsScreen extends StatelessWidget {
             const Divider(),
           ],
 
-          // ═══ المظهر ═══
           const _Header('المظهر'),
           SwitchListTile(
             title: Text(t.t('dark_mode')),
@@ -64,7 +62,6 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
-          // ═══ التبويبات الأساسية ═══
           const Divider(),
           const _Header('التبويبات الأساسية'),
           SwitchListTile(
@@ -76,6 +73,12 @@ class SettingsScreen extends StatelessWidget {
             title: Text(t.t('sections')),
             value: s.showSections,
             onChanged: s.setShowSections,
+          ),
+          SwitchListTile(
+            title: const Text('الدروس'),
+            value: s.showLessons,
+            onChanged: s.setShowLessons,
+            secondary: const Icon(Icons.menu_book),
           ),
           SwitchListTile(
             title: Text(t.t('workout')),
@@ -110,11 +113,12 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               );
-              if (r != null && r.trim().isNotEmpty) s.setSectionsLabel(r.trim());
+              if (r != null && r.trim().isNotEmpty) {
+                s.setSectionsLabel(r.trim());
+              }
             },
           ),
 
-          // ═══ الإشعارات ═══
           const Divider(),
           const _Header('الإشعارات'),
           SwitchListTile(
@@ -124,7 +128,7 @@ class SettingsScreen extends StatelessWidget {
               s.setNotifEnabled(v);
               if (v) {
                 await NotificationService.scheduleDaily(
-                  s.notifyHour, s.notifyMinute, 'تذكير', 'لا تنسَ متابعة عباداتك');
+                    s.notifyHour, s.notifyMinute, 'تذكير', 'لا تنسَ متابعة عباداتك');
               } else {
                 await NotificationService.cancelAll();
               }
@@ -157,7 +161,6 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => NotificationService.showTest(),
           ),
 
-          // ═══ المزامنة ═══
           const Divider(),
           const _Header('المزامنة'),
           ListTile(

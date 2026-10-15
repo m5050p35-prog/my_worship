@@ -8,6 +8,7 @@ class SettingsProvider extends ChangeNotifier {
   bool showSections = true;
   bool showWorkout = true;
   bool showFasting = true;
+  bool showLessons = true;
   String sectionsTabLabel = 'الأقسام';
   bool ascendingOrder = true;
   bool notificationsEnabled = false;
@@ -26,6 +27,7 @@ class SettingsProvider extends ChangeNotifier {
     showSections = sp.getBool('showSections') ?? true;
     showWorkout = sp.getBool('showWorkout') ?? true;
     showFasting = sp.getBool('showFasting') ?? true;
+    showLessons = sp.getBool('showLessons') ?? true;
     sectionsTabLabel =
         sp.getString('sectionsLabel') ?? (lang == 'ar' ? 'الأقسام' : 'Sections');
     ascendingOrder = sp.getBool('ascending') ?? true;
@@ -46,60 +48,16 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  void setDark(bool v) {
-    darkMode = v;
-    _save('dark', v);
-    notifyListeners();
-  }
-
-  void setLang(String v) {
-    lang = v;
-    _save('lang', v);
-    notifyListeners();
-  }
-
-  void setShowPrayer(bool v) {
-    showPrayer = v;
-    _save('showPrayer', v);
-    notifyListeners();
-  }
-
-  void setShowSections(bool v) {
-    showSections = v;
-    _save('showSections', v);
-    notifyListeners();
-  }
-
-  void setShowWorkout(bool v) {
-    showWorkout = v;
-    _save('showWorkout', v);
-    notifyListeners();
-  }
-
-  void setShowFasting(bool v) {
-    showFasting = v;
-    _save('showFasting', v);
-    notifyListeners();
-  }
-
-  void setSectionsLabel(String v) {
-    sectionsTabLabel = v;
-    _save('sectionsLabel', v);
-    notifyListeners();
-  }
-
-  void setAscending(bool v) {
-    ascendingOrder = v;
-    _save('ascending', v);
-    notifyListeners();
-  }
-
-  void setNotifEnabled(bool v) {
-    notificationsEnabled = v;
-    _save('notifEnabled', v);
-    notifyListeners();
-  }
-
+  void setDark(bool v) { darkMode = v; _save('dark', v); notifyListeners(); }
+  void setLang(String v) { lang = v; _save('lang', v); notifyListeners(); }
+  void setShowPrayer(bool v) { showPrayer = v; _save('showPrayer', v); notifyListeners(); }
+  void setShowSections(bool v) { showSections = v; _save('showSections', v); notifyListeners(); }
+  void setShowWorkout(bool v) { showWorkout = v; _save('showWorkout', v); notifyListeners(); }
+  void setShowFasting(bool v) { showFasting = v; _save('showFasting', v); notifyListeners(); }
+  void setShowLessons(bool v) { showLessons = v; _save('showLessons', v); notifyListeners(); }
+  void setSectionsLabel(String v) { sectionsTabLabel = v; _save('sectionsLabel', v); notifyListeners(); }
+  void setAscending(bool v) { ascendingOrder = v; _save('ascending', v); notifyListeners(); }
+  void setNotifEnabled(bool v) { notificationsEnabled = v; _save('notifEnabled', v); notifyListeners(); }
   void setNotifTime(int h, int m) {
     notifyHour = h;
     notifyMinute = m;

@@ -11,6 +11,7 @@ import 'screens/sections_body.dart';
 import 'screens/workout_body.dart';
 import 'screens/fasting_body.dart';
 import 'screens/custom_tab_body.dart';
+import 'screens/lessons_body.dart';
 import 'duration_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -43,6 +44,7 @@ class _MainShellState extends State<MainShell> {
       if (s.showPrayer) _Tab(t.t('prayer'), Icons.mosque, _prayer()),
       if (s.showSections)
         _Tab(s.sectionsTabLabel, Icons.list_alt, _sections()),
+      if (s.showLessons) _Tab('الدروس', Icons.menu_book, _lessons()),
       if (s.showWorkout)
         _Tab(t.t('workout'), Icons.fitness_center, _workout()),
       if (s.showFasting)
@@ -194,6 +196,9 @@ class _MainShellState extends State<MainShell> {
 
   Widget _sections() =>
       SectionsBody(sections: user.sections, onChanged: _changed);
+
+  Widget _lessons() =>
+      LessonsBody(lessonDays: user.lessonDays, onChanged: _changed);
 
   Widget _workout() => WorkoutBody(
         entries: user.workoutEntries,

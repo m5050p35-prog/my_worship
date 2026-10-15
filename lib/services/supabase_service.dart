@@ -29,27 +29,14 @@ class SupabaseService {
     final userId = row['id'] as String;
 
     final results = await Future.wait([
-      client
-          .from('prayer_days')
-          .select()
-          .eq('user_id', userId)
-          .order('day_number'),
-      client
-          .from('workout_entries')
-          .select()
-          .eq('user_id', userId)
-          .order('entry_number'),
-      client
-          .from('fasting_entries')
-          .select()
-          .eq('user_id', userId)
-          .order('entry_number'),
+      client.from('prayer_days').select().eq('user_id', userId).order('day_number'),
+      client.from('workout_entries').select().eq('user_id', userId).order('entry_number'),
+      client.from('fasting_entries').select().eq('user_id', userId).order('entry_number'),
     ]);
 
     final sectionsData = (row['sections_data'] as List? ?? [])
         .map((e) => Section.fromJson(Map<String, dynamic>.from(e)))
         .toList();
-    // ترتيب الأيام داخل الأقسام حسب sort_mode
     for (final s in sectionsData) {
       s.applySort();
     }
@@ -60,6 +47,10 @@ class SupabaseService {
     for (final t in customTabsData) {
       t.applySort();
     }
+
+    final rawLessons = (row['lessons_data'] as List? ?? [])
+        .map((e) => LessonDay.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
 
     return UserData(
       id: userId,
@@ -73,6 +64,7 @@ class SupabaseService {
           .toList(),
       sections: sectionsData,
       customTabs: customTabsData,
+      lessonDays: UserData.normalizeWeek(rawLessons),
       workoutEntries: (results[1] as List)
           .map((e) => WorkoutEntry.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -86,8 +78,7 @@ class SupabaseService {
     );
   }
 
-  static Future<(bool, String?, UserData?)> saveUserWithResult(
-      UserData u) async {
+  static Future<(bool, String?, UserData?)> saveUserWithResult(UserData u) async {
     try {
       final existing = await client
           .from('users')
@@ -103,6 +94,7 @@ class SupabaseService {
         'fasting_config': u.fastingConfig.toJson(),
         'sections_data': u.sections.map((e) => e.toJson()).toList(),
         'custom_tabs_data': u.customTabs.map((e) => e.toJson()).toList(),
+        'lessons_data': u.lessonDays.map((e) => e.toJson()).toList(),
         'prayer_sort_mode': u.prayerSortMode.name,
         'workout_sort_mode': u.workoutSortMode.name,
         'fasting_sort_mode': u.fastingSortMode.name,
@@ -126,25 +118,19 @@ class SupabaseService {
       final futures = <Future>[];
       if (u.prayerDays.isNotEmpty) {
         futures.add(client.from('prayer_days').upsert(
-              u.prayerDays
-                  .map((d) => {...d.toJson(), 'user_id': userId})
-                  .toList(),
+              u.prayerDays.map((d) => {...d.toJson(), 'user_id': userId}).toList(),
               onConflict: 'user_id,day_number',
             ));
       }
       if (u.workoutEntries.isNotEmpty) {
         futures.add(client.from('workout_entries').upsert(
-              u.workoutEntries
-                  .map((e) => {...e.toJson(), 'user_id': userId})
-                  .toList(),
+              u.workoutEntries.map((e) => {...e.toJson(), 'user_id': userId}).toList(),
               onConflict: 'user_id,entry_number',
             ));
       }
       if (u.fastingEntries.isNotEmpty) {
         futures.add(client.from('fasting_entries').upsert(
-              u.fastingEntries
-                  .map((e) => {...e.toJson(), 'user_id': userId})
-                  .toList(),
+              u.fastingEntries.map((e) => {...e.toJson(), 'user_id': userId}).toList(),
               onConflict: 'user_id,entry_number',
             ));
       }
