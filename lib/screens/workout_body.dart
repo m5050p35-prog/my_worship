@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../widgets/note_dialog.dart';
@@ -24,14 +23,6 @@ class WorkoutBody extends StatefulWidget {
 }
 
 class _WorkoutBodyState extends State<WorkoutBody> {
-  Timer? _sortTimer;
-
-  @override
-  void dispose() {
-    _sortTimer?.cancel();
-    super.dispose();
-  }
-
   bool _isRestAt(int index) {
     final cycle = widget.config.workoutDays + widget.config.restDays;
     if (cycle <= 0) return false;
@@ -39,21 +30,40 @@ class _WorkoutBodyState extends State<WorkoutBody> {
   }
 
   void _scheduleResort() {
-    _sortTimer?.cancel();
-    _sortTimer = Timer(const Duration(milliseconds: 700), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
         final incomplete =
-            widget.entries.where((e) => !e.isDone || e.isRest).toList();
+            widget.entries.where((e) => !e.isDone).toList();
         final complete =
-            widget.entries.where((e) => e.isDone && !e.isRest).toList();
+            widget.entries.where((e) => e.isDone).toList();
         widget.entries
           ..clear()
           ..addAll(incomplete)
           ..addAll(complete);
       });
-      widget.onChanged();
     });
+  }
+
+  Future<bool?> _confirm({required String title, required String body}) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _addDay() async {
@@ -73,37 +83,36 @@ class _WorkoutBodyState extends State<WorkoutBody> {
   }
 
   Future<void> _deleteDay(WorkoutEntry e) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('حذف اليوم'),
-        content: Text('هل تريد حذف اليوم رقم ${e.entryNumber}؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
+    final ok = await _confirm(
+      title: 'حذف اليوم',
+      body: 'هل تريد حذف اليوم رقم ${e.entryNumber}؟',
     );
     if (ok != true) return;
     setState(() => widget.entries.remove(e));
     widget.onChanged();
   }
 
+  Future<void> _resetAll() async {
+    final ok = await _confirm(
+      title: 'إعادة تعيين التمارين',
+      body: 'هل تريد حذف جميع الأيام والبدء من جديد؟',
+    );
+    if (ok != true) return;
+    widget.onReset();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.entries.isEmpty) return _onboarding();
 
+    final done = widget.entries
+        .where((e) => e.isDone && !e.isRest)
+        .length;
+
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
           child: Row(
             children: [
               Text(
@@ -111,15 +120,19 @@ class _WorkoutBodyState extends State<WorkoutBody> {
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const Spacer(),
+              Text(
+                '$done منجز',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
               IconButton(
                 icon: const Icon(Icons.edit),
                 tooltip: 'تعديل النمط',
                 onPressed: _editPattern,
               ),
               IconButton(
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Icons.restart_alt),
                 tooltip: 'إعادة تعيين',
-                onPressed: widget.onReset,
+                onPressed: _resetAll,
               ),
             ],
           ),
@@ -198,9 +211,10 @@ class _WorkoutBodyState extends State<WorkoutBody> {
               Checkbox(
                 value: e.isDone,
                 onChanged: (v) {
+                  final wasDone = e.isDone;
                   setState(() => e.isDone = v ?? false);
                   widget.onChanged();
-                  if (e.isDone) _scheduleResort();
+                  if (wasDone != e.isDone) _scheduleResort();
                 },
               ),
             IconButton(

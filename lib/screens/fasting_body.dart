@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../widgets/note_dialog.dart';
@@ -20,17 +19,8 @@ class FastingBody extends StatefulWidget {
 }
 
 class _FastingBodyState extends State<FastingBody> {
-  Timer? _sortTimer;
-
-  @override
-  void dispose() {
-    _sortTimer?.cancel();
-    super.dispose();
-  }
-
   void _scheduleResort() {
-    _sortTimer?.cancel();
-    _sortTimer = Timer(const Duration(milliseconds: 700), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
         final incomplete =
@@ -42,8 +32,28 @@ class _FastingBodyState extends State<FastingBody> {
           ..addAll(incomplete)
           ..addAll(complete);
       });
-      widget.onChanged();
     });
+  }
+
+  Future<bool?> _confirm({required String title, required String body}) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _addDay() async {
@@ -62,26 +72,22 @@ class _FastingBodyState extends State<FastingBody> {
   }
 
   Future<void> _deleteDay(FastingEntry e) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('حذف اليوم'),
-        content: Text('هل تريد حذف اليوم رقم ${e.entryNumber}؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
+    final ok = await _confirm(
+      title: 'حذف اليوم',
+      body: 'هل تريد حذف اليوم رقم ${e.entryNumber}؟',
     );
     if (ok != true) return;
     setState(() => widget.entries.remove(e));
+    widget.onChanged();
+  }
+
+  Future<void> _resetAll() async {
+    final ok = await _confirm(
+      title: 'إعادة تعيين الصوم',
+      body: 'هل تريد حذف جميع أيام الصوم والبدء من جديد؟',
+    );
+    if (ok != true) return;
+    setState(() => widget.entries.clear());
     widget.onChanged();
   }
 
@@ -94,7 +100,7 @@ class _FastingBodyState extends State<FastingBody> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
           child: Row(
             children: [
               Text(
@@ -103,6 +109,12 @@ class _FastingBodyState extends State<FastingBody> {
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
                 ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.restart_alt),
+                tooltip: 'إعادة تعيين',
+                onPressed: _resetAll,
               ),
             ],
           ),
@@ -178,9 +190,10 @@ class _FastingBodyState extends State<FastingBody> {
         leading: Checkbox(
           value: e.isDone,
           onChanged: (v) {
+            final wasDone = e.isDone;
             setState(() => e.isDone = v ?? false);
             widget.onChanged();
-            if (e.isDone) _scheduleResort();
+            if (wasDone != e.isDone) _scheduleResort();
           },
         ),
         title: Text(

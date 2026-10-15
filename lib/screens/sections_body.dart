@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../widgets/note_dialog.dart';
@@ -18,17 +17,8 @@ class SectionsBody extends StatefulWidget {
 }
 
 class _SectionsBodyState extends State<SectionsBody> {
-  Timer? _sortTimer;
-
-  @override
-  void dispose() {
-    _sortTimer?.cancel();
-    super.dispose();
-  }
-
   void _scheduleResort(Section s) {
-    _sortTimer?.cancel();
-    _sortTimer = Timer(const Duration(milliseconds: 700), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
         final incomplete = s.days.where((d) => !d.isDone).toList();
@@ -38,28 +28,88 @@ class _SectionsBodyState extends State<SectionsBody> {
           ..addAll(incomplete)
           ..addAll(complete);
       });
-      widget.onChanged();
     });
+  }
+
+  Future<bool?> _confirm({required String title, required String body}) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resetAll() async {
+    if (widget.sections.isEmpty) return;
+    final ok = await _confirm(
+      title: 'إعادة تعيين الأقسام',
+      body: 'هل تريد حذف جميع الأقسام بكل أيامها؟',
+    );
+    if (ok != true) return;
+    setState(() => widget.sections.clear());
+    widget.onChanged();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: widget.sections.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'لا توجد أقسام بعد.\nاضغط "قسم جديد" للبدء.',
-                  textAlign: TextAlign.center,
+      body: Column(
+        children: [
+          // ═══ Header ═══
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+            child: Row(
+              children: [
+                Text(
+                  'الأقسام: ${widget.sections.length}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
-              ),
-            )
-          : ListView.builder(
-              itemCount: widget.sections.length,
-              itemBuilder: (c, i) => _sectionCard(widget.sections[i]),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.restart_alt),
+                  tooltip: 'حذف كل الأقسام',
+                  onPressed: _resetAll,
+                ),
+              ],
             ),
+          ),
+          // ═══ List ═══
+          Expanded(
+            child: widget.sections.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text(
+                        'لا توجد أقسام بعد.\nاضغط "قسم جديد" للبدء.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: widget.sections.length,
+                    itemBuilder: (c, i) =>
+                        _sectionCard(widget.sections[i]),
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _newSection,
         icon: const Icon(Icons.add),
@@ -112,9 +162,10 @@ class _SectionsBodyState extends State<SectionsBody> {
       leading: Checkbox(
         value: d.isDone,
         onChanged: (v) {
+          final wasDone = d.isDone;
           setState(() => d.isDone = v ?? false);
           widget.onChanged();
-          if (d.isDone) _scheduleResort(s);
+          if (wasDone != d.isDone) _scheduleResort(s);
         },
       ),
       title: Text(
@@ -160,23 +211,9 @@ class _SectionsBodyState extends State<SectionsBody> {
   }
 
   Future<void> _deleteDay(Section s, SectionDay d) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('حذف اليوم'),
-        content: Text('هل تريد حذف اليوم رقم ${d.dayNumber}؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
+    final ok = await _confirm(
+      title: 'حذف اليوم',
+      body: 'هل تريد حذف اليوم رقم ${d.dayNumber}؟',
     );
     if (ok != true) return;
     setState(() => s.days.remove(d));
@@ -184,23 +221,9 @@ class _SectionsBodyState extends State<SectionsBody> {
   }
 
   Future<void> _deleteSection(Section s) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('حذف القسم'),
-        content: Text('هل تريد حذف "${s.name}" بكل أيامه؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
+    final ok = await _confirm(
+      title: 'حذف القسم',
+      body: 'هل تريد حذف "${s.name}" بكل أيامه؟',
     );
     if (ok != true) return;
     setState(() => widget.sections.remove(s));

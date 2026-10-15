@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models.dart';
 
@@ -19,18 +18,9 @@ class PrayerBody extends StatefulWidget {
 }
 
 class _PrayerBodyState extends State<PrayerBody> {
-  Timer? _sortTimer;
-
-  @override
-  void dispose() {
-    _sortTimer?.cancel();
-    super.dispose();
-  }
-
-  /// إعادة ترتيب: غير المكتمل أولاً، ثم المكتمل
+  /// يُنفّذ الترتيب بعد انتهاء الإطار الحالي (تظهر علامة ✅ أولاً)
   void _scheduleResort() {
-    _sortTimer?.cancel();
-    _sortTimer = Timer(const Duration(milliseconds: 700), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
         final incomplete = widget.days.where((d) => !d.isComplete).toList();
@@ -40,16 +30,46 @@ class _PrayerBodyState extends State<PrayerBody> {
           ..addAll(incomplete)
           ..addAll(complete);
       });
-      widget.onChanged();
     });
   }
 
   Future<void> _deleteDay(PrayerDay d) async {
-    final ok = await showDialog<bool>(
+    final ok = await _confirm(
+      title: 'حذف اليوم',
+      body: 'هل تريد حذف اليوم رقم ${d.dayNumber}؟',
+    );
+    if (ok != true) return;
+    setState(() => widget.days.remove(d));
+    widget.onChanged();
+  }
+
+  Future<void> _resetAll() async {
+    if (widget.days.isEmpty) return;
+    final ok = await _confirm(
+      title: 'إعادة تعيين',
+      body: 'هل تريد مسح علامات جميع الصلوات؟ (الأيام تبقى محفوظة)',
+    );
+    if (ok != true) return;
+    setState(() {
+      for (final d in widget.days) {
+        d.fajr = false;
+        d.dhuhr = false;
+        d.asr = false;
+        d.maghrib = false;
+        d.isha = false;
+      }
+      // إعادة الترتيب الأصلي حسب dayNumber
+      widget.days.sort((a, b) => a.dayNumber.compareTo(b.dayNumber));
+    });
+    widget.onChanged();
+  }
+
+  Future<bool?> _confirm({required String title, required String body}) {
+    return showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('حذف اليوم'),
-        content: Text('هل تريد حذف اليوم رقم ${d.dayNumber}؟'),
+        title: Text(title),
+        content: Text(body),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -58,20 +78,69 @@ class _PrayerBodyState extends State<PrayerBody> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
+            child: const Text('تأكيد'),
           ),
         ],
       ),
     );
-    if (ok != true) return;
-    setState(() => widget.days.remove(d));
+  }
+
+  void _togglePrayer(PrayerDay d, int index) {
+    final wasComplete = d.isComplete;
+    setState(() {
+      switch (index) {
+        case 0: d.fajr = !d.fajr; break;
+        case 1: d.dhuhr = !d.dhuhr; break;
+        case 2: d.asr = !d.asr; break;
+        case 3: d.maghrib = !d.maghrib; break;
+        case 4: d.isha = !d.isha; break;
+      }
+    });
     widget.onChanged();
+    if (wasComplete != d.isComplete) _scheduleResort();
+  }
+
+  void _toggleFullDay(PrayerDay d) {
+    setState(() {
+      final make = !d.isComplete;
+      d.fajr = make;
+      d.dhuhr = make;
+      d.asr = make;
+      d.maghrib = make;
+      d.isha = make;
+    });
+    widget.onChanged();
+    _scheduleResort();
   }
 
   @override
   Widget build(BuildContext context) {
+    final complete = widget.days.where((d) => d.isComplete).length;
+
     return Column(
       children: [
+        // ═══ Header ═══
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+          child: Row(
+            children: [
+              Text(
+                'مكتمل: $complete / ${widget.days.length}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.restart_alt),
+                tooltip: 'إعادة تعيين كل العلامات',
+                onPressed: _resetAll,
+              ),
+            ],
+          ),
+        ),
+        // ═══ List ═══
         Expanded(
           child: widget.days.isEmpty
               ? const Center(
@@ -88,6 +157,7 @@ class _PrayerBodyState extends State<PrayerBody> {
                   itemBuilder: (c, i) => _card(widget.days[i]),
                 ),
         ),
+        // ═══ Add button ═══
         Padding(
           padding: const EdgeInsets.all(12),
           child: SizedBox(
@@ -149,19 +219,7 @@ class _PrayerBodyState extends State<PrayerBody> {
                   Column(
                     children: [
                       InkWell(
-                        onTap: () {
-                          setState(() {
-                            switch (i) {
-                              case 0: d.fajr = !d.fajr; break;
-                              case 1: d.dhuhr = !d.dhuhr; break;
-                              case 2: d.asr = !d.asr; break;
-                              case 3: d.maghrib = !d.maghrib; break;
-                              case 4: d.isha = !d.isha; break;
-                            }
-                          });
-                          widget.onChanged();
-                          if (d.isComplete) _scheduleResort();
-                        },
+                        onTap: () => _togglePrayer(d, i),
                         borderRadius: BorderRadius.circular(24),
                         child: CircleAvatar(
                           radius: 22,
@@ -183,17 +241,9 @@ class _PrayerBodyState extends State<PrayerBody> {
             LinearProgressIndicator(value: d.completed / 5),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  final make = !d.isComplete;
-                  d.fajr = d.dhuhr = d.asr = d.maghrib = d.isha = make;
-                });
-                widget.onChanged();
-                if (d.isComplete) _scheduleResort();
-              },
+              onPressed: () => _toggleFullDay(d),
               icon: Icon(d.isComplete ? Icons.refresh : Icons.done_all),
-              label:
-                  Text(d.isComplete ? 'إعادة تعيين' : 'اكتمل اليوم'),
+              label: Text(d.isComplete ? 'إعادة تعيين' : 'اكتمل اليوم'),
             ),
           ],
         ),
