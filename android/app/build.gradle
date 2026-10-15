@@ -9,7 +9,6 @@ if (localPropertiesFile.exists()) {
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
 def hasReleaseKeystore = false
-def hasCustomDebugKeystore = false
 
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
@@ -40,8 +39,8 @@ android {
         applicationId = "com.yourname.my_worship"
         minSdk = 23
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
 
     signingConfigs {
@@ -53,7 +52,6 @@ android {
                 storePassword = keystoreProperties['storePassword']
             }
         }
-        // مفتاح ثابت للـ debug (يُستخدم عندما لا يوجد keystore)
         debug {
             if (hasReleaseKeystore) {
                 keyAlias = keystoreProperties['keyAlias']

@@ -19,7 +19,7 @@ class AppLocalizations {
   String t(String key) => (isAr ? _ar : _en)[key] ?? key;
 
   static const _ar = {
-    'app_name': 'الاتزان',
+    'app_name': 'الاتزان والترتيب',
     'login': 'تسجيل الدخول',
     'signup': 'إنشاء حساب',
     'email': 'البريد الإلكتروني',
@@ -70,7 +70,7 @@ class AppLocalizations {
   };
 
   static const _en = {
-    'app_name': 'Al-Etizan',
+    'app_name': 'Balance & order',
     'login': 'Login',
     'signup': 'Sign Up',
     'email': 'Email',
