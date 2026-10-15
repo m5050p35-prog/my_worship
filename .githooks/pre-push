@@ -1,0 +1,9 @@
+#!/bin/bash
+echo "🔍 Running flutter analyze before push..."
+flutter analyze
+if [ $? -ne 0 ]; then
+  echo "❌ فشل flutter analyze. أصلح الأخطاء قبل الرفع."
+  exit 1
+fi
+echo "✅ flutter analyze نجح. جارٍ الرفع..."
+exit 0
