@@ -7,7 +7,7 @@ class Storage {
   static const _kSession = 'current_user_email';
 
   // ═══════════════════════════════════════════════════════════════
-  //  الجلسة — تسجيل الدخول التلقائي
+  //  الجلسة
   // ═══════════════════════════════════════════════════════════════
   static Future<void> saveSession(String email) async {
     final sp = await SharedPreferences.getInstance();
@@ -52,6 +52,9 @@ class Storage {
         id: j['id'],
         identifier: j['identifier'] ?? '',
         name: j['name'] ?? '',
+        prayerSortMode: SortModeExt.fromKey(j['prayer_sort_mode'] as String?),
+        workoutSortMode: SortModeExt.fromKey(j['workout_sort_mode'] as String?),
+        fastingSortMode: SortModeExt.fromKey(j['fasting_sort_mode'] as String?),
         prayerDays: (j['prayer_days'] as List? ?? [])
             .map((e) => PrayerDay.fromJson(Map<String, dynamic>.from(e)))
             .toList(),

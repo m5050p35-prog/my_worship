@@ -3,12 +3,16 @@ import '../models.dart';
 
 class PrayerBody extends StatefulWidget {
   final List<PrayerDay> days;
+  final SortMode sortMode;
+  final void Function(SortMode) onSortChanged;
   final VoidCallback onChanged;
   final VoidCallback onAddDay;
 
   const PrayerBody({
     super.key,
     required this.days,
+    required this.sortMode,
+    required this.onSortChanged,
     required this.onChanged,
     required this.onAddDay,
   });
@@ -18,26 +22,60 @@ class PrayerBody extends StatefulWidget {
 }
 
 class _PrayerBodyState extends State<PrayerBody> {
-  /// يُنفّذ الترتيب بعد انتهاء الإطار الحالي (تظهر علامة ✅ أولاً)
-  void _scheduleResort() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() {
-        final incomplete = widget.days.where((d) => !d.isComplete).toList();
-        final complete = widget.days.where((d) => d.isComplete).toList();
-        widget.days
-          ..clear()
-          ..addAll(incomplete)
-          ..addAll(complete);
-      });
-    });
+  @override
+  void initState() {
+    super.initState();
+    _applySort(widget.sortMode);
   }
 
+  void _applySort(SortMode m) {
+    switch (m) {
+      case SortMode.ascending:
+        widget.days.sort((a, b) => a.dayNumber.compareTo(b.dayNumber));
+        break;
+      case SortMode.descending:
+        widget.days.sort((a, b) => b.dayNumber.compareTo(a.dayNumber));
+        break;
+      case SortMode.incompleteFirst:
+        widget.days.sort((a, b) {
+          if (a.isComplete == b.isComplete) {
+            return a.dayNumber.compareTo(b.dayNumber);
+          }
+          return a.isComplete ? 1 : -1;
+        });
+        break;
+      case SortMode.completeFirst:
+        widget.days.sort((a, b) {
+          if (a.isComplete == b.isComplete) {
+            return a.dayNumber.compareTo(b.dayNumber);
+          }
+          return a.isComplete ? -1 : 1;
+        });
+        break;
+    }
+  }
+
+  Future<bool?> _confirm(String title, String body) => showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('تأكيد'),
+            ),
+          ],
+        ),
+      );
+
   Future<void> _deleteDay(PrayerDay d) async {
-    final ok = await _confirm(
-      title: 'حذف اليوم',
-      body: 'هل تريد حذف اليوم رقم ${d.dayNumber}؟',
-    );
+    final ok = await _confirm('حذف اليوم', 'حذف اليوم رقم ${d.dayNumber}؟');
     if (ok != true) return;
     setState(() => widget.days.remove(d));
     widget.onChanged();
@@ -46,9 +84,7 @@ class _PrayerBodyState extends State<PrayerBody> {
   Future<void> _resetAll() async {
     if (widget.days.isEmpty) return;
     final ok = await _confirm(
-      title: 'إعادة تعيين',
-      body: 'هل تريد مسح علامات جميع الصلوات؟ (الأيام تبقى محفوظة)',
-    );
+        'إعادة تعيين', 'مسح علامات جميع الصلوات؟ (الأيام تبقى محفوظة)');
     if (ok != true) return;
     setState(() {
       for (final d in widget.days) {
@@ -58,46 +94,36 @@ class _PrayerBodyState extends State<PrayerBody> {
         d.maghrib = false;
         d.isha = false;
       }
-      // إعادة الترتيب الأصلي حسب dayNumber
-      widget.days.sort((a, b) => a.dayNumber.compareTo(b.dayNumber));
+      _applySort(widget.sortMode);
     });
     widget.onChanged();
-  }
-
-  Future<bool?> _confirm({required String title, required String body}) {
-    return showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('تأكيد'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _togglePrayer(PrayerDay d, int index) {
-    final wasComplete = d.isComplete;
     setState(() {
       switch (index) {
-        case 0: d.fajr = !d.fajr; break;
-        case 1: d.dhuhr = !d.dhuhr; break;
-        case 2: d.asr = !d.asr; break;
-        case 3: d.maghrib = !d.maghrib; break;
-        case 4: d.isha = !d.isha; break;
+        case 0:
+          d.fajr = !d.fajr;
+          break;
+        case 1:
+          d.dhuhr = !d.dhuhr;
+          break;
+        case 2:
+          d.asr = !d.asr;
+          break;
+        case 3:
+          d.maghrib = !d.maghrib;
+          break;
+        case 4:
+          d.isha = !d.isha;
+          break;
+      }
+      if (widget.sortMode == SortMode.incompleteFirst ||
+          widget.sortMode == SortMode.completeFirst) {
+        _applySort(widget.sortMode);
       }
     });
     widget.onChanged();
-    if (wasComplete != d.isComplete) _scheduleResort();
   }
 
   void _toggleFullDay(PrayerDay d) {
@@ -108,9 +134,12 @@ class _PrayerBodyState extends State<PrayerBody> {
       d.asr = make;
       d.maghrib = make;
       d.isha = make;
+      if (widget.sortMode == SortMode.incompleteFirst ||
+          widget.sortMode == SortMode.completeFirst) {
+        _applySort(widget.sortMode);
+      }
     });
     widget.onChanged();
-    _scheduleResort();
   }
 
   @override
@@ -119,19 +148,45 @@ class _PrayerBodyState extends State<PrayerBody> {
 
     return Column(
       children: [
-        // ═══ Header ═══
+        // ═══ Header مع Sort ═══
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+          padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
           child: Row(
             children: [
               Text(
                 'مكتمل: $complete / ${widget.days.length}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontSize: 14,
                 ),
               ),
               const Spacer(),
+              PopupMenuButton<SortMode>(
+                icon: const Icon(Icons.sort),
+                tooltip: 'ترتيب القائمة',
+                onSelected: (m) {
+                  widget.onSortChanged(m);
+                  setState(() => _applySort(m));
+                },
+                itemBuilder: (_) => SortMode.values
+                    .map((m) => PopupMenuItem(
+                          value: m,
+                          child: Row(
+                            children: [
+                              Icon(
+                                widget.sortMode == m
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
+                                size: 18,
+                                color: Colors.teal,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(m.label),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+              ),
               IconButton(
                 icon: const Icon(Icons.restart_alt),
                 tooltip: 'إعادة تعيين كل العلامات',
@@ -157,7 +212,7 @@ class _PrayerBodyState extends State<PrayerBody> {
                   itemBuilder: (c, i) => _card(widget.days[i]),
                 ),
         ),
-        // ═══ Add button ═══
+        // ═══ Add ═══
         Padding(
           padding: const EdgeInsets.all(12),
           child: SizedBox(
@@ -194,8 +249,7 @@ class _PrayerBodyState extends State<PrayerBody> {
                 ),
                 if (d.isComplete) ...[
                   const SizedBox(width: 6),
-                  const Icon(Icons.check_circle,
-                      color: Colors.teal, size: 18),
+                  const Icon(Icons.check_circle, color: Colors.teal, size: 18),
                 ],
                 const Spacer(),
                 Text(

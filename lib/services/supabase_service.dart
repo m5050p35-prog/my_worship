@@ -18,9 +18,6 @@ class SupabaseService {
     if (kDebugMode) debugPrint('✅ Supabase init: $url');
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  //  loadUser
-  // ═══════════════════════════════════════════════════════════════
   static Future<UserData?> loadUser(String identifier) async {
     final row = await client
         .from('users')
@@ -49,19 +46,33 @@ class SupabaseService {
           .order('entry_number'),
     ]);
 
+    final sectionsData = (row['sections_data'] as List? ?? [])
+        .map((e) => Section.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    // ترتيب الأيام داخل الأقسام حسب sort_mode
+    for (final s in sectionsData) {
+      s.applySort();
+    }
+
+    final customTabsData = (row['custom_tabs_data'] as List? ?? [])
+        .map((e) => CustomTab.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    for (final t in customTabsData) {
+      t.applySort();
+    }
+
     return UserData(
       id: userId,
       identifier: identifier,
       name: (row['name'] ?? '') as String,
+      prayerSortMode: SortModeExt.fromKey(row['prayer_sort_mode'] as String?),
+      workoutSortMode: SortModeExt.fromKey(row['workout_sort_mode'] as String?),
+      fastingSortMode: SortModeExt.fromKey(row['fasting_sort_mode'] as String?),
       prayerDays: (results[0] as List)
           .map((e) => PrayerDay.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
-      sections: ((row['sections_data'] as List?) ?? [])
-          .map((e) => Section.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-      customTabs: ((row['custom_tabs_data'] as List?) ?? [])
-          .map((e) => CustomTab.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
+      sections: sectionsData,
+      customTabs: customTabsData,
       workoutEntries: (results[1] as List)
           .map((e) => WorkoutEntry.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -75,9 +86,6 @@ class SupabaseService {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  //  saveUserWithResult
-  // ═══════════════════════════════════════════════════════════════
   static Future<(bool, String?, UserData?)> saveUserWithResult(
       UserData u) async {
     try {
@@ -95,6 +103,9 @@ class SupabaseService {
         'fasting_config': u.fastingConfig.toJson(),
         'sections_data': u.sections.map((e) => e.toJson()).toList(),
         'custom_tabs_data': u.customTabs.map((e) => e.toJson()).toList(),
+        'prayer_sort_mode': u.prayerSortMode.name,
+        'workout_sort_mode': u.workoutSortMode.name,
+        'fasting_sort_mode': u.fastingSortMode.name,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
 
@@ -141,11 +152,8 @@ class SupabaseService {
 
       return (true, null, u);
     } on PostgrestException catch (e) {
-      final msg = 'PostgREST: ${e.message}';
-      debugPrint('❌ $msg');
-      return (false, msg, null);
+      return (false, 'PostgREST: ${e.message}', null);
     } catch (e) {
-      debugPrint('❌ $e');
       return (false, '$e', null);
     }
   }

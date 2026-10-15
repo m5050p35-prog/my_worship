@@ -5,6 +5,8 @@ import '../widgets/note_dialog.dart';
 class WorkoutBody extends StatefulWidget {
   final List<WorkoutEntry> entries;
   final WorkoutConfig config;
+  final SortMode sortMode;
+  final void Function(SortMode) onSortChanged;
   final VoidCallback onChanged;
   final void Function(WorkoutConfig) onConfigChanged;
   final VoidCallback onReset;
@@ -13,6 +15,8 @@ class WorkoutBody extends StatefulWidget {
     super.key,
     required this.entries,
     required this.config,
+    required this.sortMode,
+    required this.onSortChanged,
     required this.onChanged,
     required this.onConfigChanged,
     required this.onReset,
@@ -23,48 +27,69 @@ class WorkoutBody extends StatefulWidget {
 }
 
 class _WorkoutBodyState extends State<WorkoutBody> {
+  @override
+  void initState() {
+    super.initState();
+    _applySort(widget.sortMode);
+  }
+
   bool _isRestAt(int index) {
     final cycle = widget.config.workoutDays + widget.config.restDays;
     if (cycle <= 0) return false;
     return (index % cycle) >= widget.config.workoutDays;
   }
 
-  void _scheduleResort() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() {
-        final incomplete =
-            widget.entries.where((e) => !e.isDone).toList();
-        final complete =
-            widget.entries.where((e) => e.isDone).toList();
+  void _applySort(SortMode m) {
+    switch (m) {
+      case SortMode.ascending:
         widget.entries
-          ..clear()
-          ..addAll(incomplete)
-          ..addAll(complete);
-      });
-    });
+            .sort((a, b) => a.entryNumber.compareTo(b.entryNumber));
+        break;
+      case SortMode.descending:
+        widget.entries
+            .sort((a, b) => b.entryNumber.compareTo(a.entryNumber));
+        break;
+      case SortMode.incompleteFirst:
+        widget.entries.sort((a, b) {
+          final aDone = a.isDone && !a.isRest;
+          final bDone = b.isDone && !b.isRest;
+          if (aDone == bDone) {
+            return a.entryNumber.compareTo(b.entryNumber);
+          }
+          return aDone ? 1 : -1;
+        });
+        break;
+      case SortMode.completeFirst:
+        widget.entries.sort((a, b) {
+          final aDone = a.isDone && !a.isRest;
+          final bDone = b.isDone && !b.isRest;
+          if (aDone == bDone) {
+            return a.entryNumber.compareTo(b.entryNumber);
+          }
+          return aDone ? -1 : 1;
+        });
+        break;
+    }
   }
 
-  Future<bool?> _confirm({required String title, required String body}) {
-    return showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('تأكيد'),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<bool?> _confirm(String title, String body) => showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('تأكيد'),
+            ),
+          ],
+        ),
+      );
 
   Future<void> _addDay() async {
     final today = DateTime.now();
@@ -78,25 +103,20 @@ class _WorkoutBodyState extends State<WorkoutBody> {
             .substring(0, 10),
         isRest: _isRestAt(n),
       ));
+      _applySort(widget.sortMode);
     });
     widget.onChanged();
   }
 
   Future<void> _deleteDay(WorkoutEntry e) async {
-    final ok = await _confirm(
-      title: 'حذف اليوم',
-      body: 'هل تريد حذف اليوم رقم ${e.entryNumber}؟',
-    );
+    final ok = await _confirm('حذف اليوم', 'حذف اليوم رقم ${e.entryNumber}؟');
     if (ok != true) return;
     setState(() => widget.entries.remove(e));
     widget.onChanged();
   }
 
   Future<void> _resetAll() async {
-    final ok = await _confirm(
-      title: 'إعادة تعيين التمارين',
-      body: 'هل تريد حذف جميع الأيام والبدء من جديد؟',
-    );
+    final ok = await _confirm('إعادة تعيين', 'حذف جميع الأيام والبدء من جديد؟');
     if (ok != true) return;
     widget.onReset();
   }
@@ -105,24 +125,51 @@ class _WorkoutBodyState extends State<WorkoutBody> {
   Widget build(BuildContext context) {
     if (widget.entries.isEmpty) return _onboarding();
 
-    final done = widget.entries
-        .where((e) => e.isDone && !e.isRest)
-        .length;
+    final done =
+        widget.entries.where((e) => e.isDone && !e.isRest).length;
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+          padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
           child: Row(
             children: [
               Text(
                 '${widget.config.workoutDays} تمرين / ${widget.config.restDays} راحة',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 13),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Text(
                 '$done منجز',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              const Spacer(),
+              PopupMenuButton<SortMode>(
+                icon: const Icon(Icons.sort),
+                tooltip: 'ترتيب القائمة',
+                onSelected: (m) {
+                  widget.onSortChanged(m);
+                  setState(() => _applySort(m));
+                },
+                itemBuilder: (_) => SortMode.values
+                    .map((m) => PopupMenuItem(
+                          value: m,
+                          child: Row(
+                            children: [
+                              Icon(
+                                widget.sortMode == m
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
+                                size: 18,
+                                color: Colors.teal,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(m.label),
+                            ],
+                          ),
+                        ))
+                    .toList(),
               ),
               IconButton(
                 icon: const Icon(Icons.edit),
@@ -211,10 +258,14 @@ class _WorkoutBodyState extends State<WorkoutBody> {
               Checkbox(
                 value: e.isDone,
                 onChanged: (v) {
-                  final wasDone = e.isDone;
-                  setState(() => e.isDone = v ?? false);
+                  setState(() {
+                    e.isDone = v ?? false;
+                    if (widget.sortMode == SortMode.incompleteFirst ||
+                        widget.sortMode == SortMode.completeFirst) {
+                      _applySort(widget.sortMode);
+                    }
+                  });
                   widget.onChanged();
-                  if (wasDone != e.isDone) _scheduleResort();
                 },
               ),
             IconButton(

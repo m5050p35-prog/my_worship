@@ -4,12 +4,16 @@ import '../widgets/note_dialog.dart';
 
 class FastingBody extends StatefulWidget {
   final List<FastingEntry> entries;
+  final SortMode sortMode;
+  final void Function(SortMode) onSortChanged;
   final VoidCallback onChanged;
   final void Function(int) onSetup;
 
   const FastingBody({
     super.key,
     required this.entries,
+    required this.sortMode,
+    required this.onSortChanged,
     required this.onChanged,
     required this.onSetup,
   });
@@ -19,42 +23,59 @@ class FastingBody extends StatefulWidget {
 }
 
 class _FastingBodyState extends State<FastingBody> {
-  void _scheduleResort() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() {
-        final incomplete =
-            widget.entries.where((e) => !e.isDone).toList();
-        final complete =
-            widget.entries.where((e) => e.isDone).toList();
-        widget.entries
-          ..clear()
-          ..addAll(incomplete)
-          ..addAll(complete);
-      });
-    });
+  @override
+  void initState() {
+    super.initState();
+    _applySort(widget.sortMode);
   }
 
-  Future<bool?> _confirm({required String title, required String body}) {
-    return showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('تأكيد'),
-          ),
-        ],
-      ),
-    );
+  void _applySort(SortMode m) {
+    switch (m) {
+      case SortMode.ascending:
+        widget.entries
+            .sort((a, b) => a.entryNumber.compareTo(b.entryNumber));
+        break;
+      case SortMode.descending:
+        widget.entries
+            .sort((a, b) => b.entryNumber.compareTo(a.entryNumber));
+        break;
+      case SortMode.incompleteFirst:
+        widget.entries.sort((a, b) {
+          if (a.isDone == b.isDone) {
+            return a.entryNumber.compareTo(b.entryNumber);
+          }
+          return a.isDone ? 1 : -1;
+        });
+        break;
+      case SortMode.completeFirst:
+        widget.entries.sort((a, b) {
+          if (a.isDone == b.isDone) {
+            return a.entryNumber.compareTo(b.entryNumber);
+          }
+          return a.isDone ? -1 : 1;
+        });
+        break;
+    }
   }
+
+  Future<bool?> _confirm(String title, String body) => showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('تأكيد'),
+            ),
+          ],
+        ),
+      );
 
   Future<void> _addDay() async {
     final today = DateTime.now();
@@ -67,25 +88,20 @@ class _FastingBodyState extends State<FastingBody> {
             .toIso8601String()
             .substring(0, 10),
       ));
+      _applySort(widget.sortMode);
     });
     widget.onChanged();
   }
 
   Future<void> _deleteDay(FastingEntry e) async {
-    final ok = await _confirm(
-      title: 'حذف اليوم',
-      body: 'هل تريد حذف اليوم رقم ${e.entryNumber}؟',
-    );
+    final ok = await _confirm('حذف اليوم', 'حذف اليوم رقم ${e.entryNumber}؟');
     if (ok != true) return;
     setState(() => widget.entries.remove(e));
     widget.onChanged();
   }
 
   Future<void> _resetAll() async {
-    final ok = await _confirm(
-      title: 'إعادة تعيين الصوم',
-      body: 'هل تريد حذف جميع أيام الصوم والبدء من جديد؟',
-    );
+    final ok = await _confirm('إعادة تعيين', 'حذف جميع أيام الصوم والبدء من جديد؟');
     if (ok != true) return;
     setState(() => widget.entries.clear());
     widget.onChanged();
@@ -100,17 +116,43 @@ class _FastingBodyState extends State<FastingBody> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+          padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
           child: Row(
             children: [
               Text(
                 'الصيام: $done / ${widget.entries.length}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontSize: 14,
                 ),
               ),
               const Spacer(),
+              PopupMenuButton<SortMode>(
+                icon: const Icon(Icons.sort),
+                tooltip: 'ترتيب القائمة',
+                onSelected: (m) {
+                  widget.onSortChanged(m);
+                  setState(() => _applySort(m));
+                },
+                itemBuilder: (_) => SortMode.values
+                    .map((m) => PopupMenuItem(
+                          value: m,
+                          child: Row(
+                            children: [
+                              Icon(
+                                widget.sortMode == m
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
+                                size: 18,
+                                color: Colors.teal,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(m.label),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+              ),
               IconButton(
                 icon: const Icon(Icons.restart_alt),
                 tooltip: 'إعادة تعيين',
@@ -149,10 +191,8 @@ class _FastingBodyState extends State<FastingBody> {
           children: [
             const Icon(Icons.nights_stay, size: 64, color: Colors.indigo),
             const SizedBox(height: 16),
-            const Text(
-              'اختر مدة الصوم',
-              style: TextStyle(fontSize: 20),
-            ),
+            const Text('اختر مدة الصوم',
+                style: TextStyle(fontSize: 20)),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
@@ -190,10 +230,14 @@ class _FastingBodyState extends State<FastingBody> {
         leading: Checkbox(
           value: e.isDone,
           onChanged: (v) {
-            final wasDone = e.isDone;
-            setState(() => e.isDone = v ?? false);
+            setState(() {
+              e.isDone = v ?? false;
+              if (widget.sortMode == SortMode.incompleteFirst ||
+                  widget.sortMode == SortMode.completeFirst) {
+                _applySort(widget.sortMode);
+              }
+            });
             widget.onChanged();
-            if (wasDone != e.isDone) _scheduleResort();
           },
         ),
         title: Text(

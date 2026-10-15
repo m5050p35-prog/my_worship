@@ -162,7 +162,7 @@ class Section {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  CustomTab — تبويب مخصص يعمل كقسم مستقل
+//  CustomTab
 // ═══════════════════════════════════════════════════════════════
 class CustomTabDay {
   final int dayNumber;
@@ -195,9 +195,9 @@ class CustomTabDay {
 class CustomTab {
   final String id;
   String name;
-  String type; // قسم / ورد / صدقة ... حر
+  String type;
   String note;
-  bool enabled; // يظهر في الشريط السفلي؟
+  bool enabled;
   SortMode sortMode;
   List<CustomTabDay> days;
 
@@ -264,7 +264,7 @@ class CustomTab {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  WorkoutEntry / Config
+//  Workout
 // ═══════════════════════════════════════════════════════════════
 class WorkoutEntry {
   final int entryNumber;
@@ -356,12 +356,17 @@ class FastingConfig {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  UserData
+//  UserData — مع SortModes لكل تبويب
 // ═══════════════════════════════════════════════════════════════
 class UserData {
   String? id;
   String identifier;
   String name;
+
+  SortMode prayerSortMode;
+  SortMode workoutSortMode;
+  SortMode fastingSortMode;
+
   List<PrayerDay> prayerDays;
   List<Section> sections;
   List<CustomTab> customTabs;
@@ -374,6 +379,9 @@ class UserData {
     this.id,
     required this.identifier,
     this.name = '',
+    this.prayerSortMode = SortMode.incompleteFirst,
+    this.workoutSortMode = SortMode.incompleteFirst,
+    this.fastingSortMode = SortMode.incompleteFirst,
     List<PrayerDay>? prayerDays,
     List<Section>? sections,
     List<CustomTab>? customTabs,
@@ -393,6 +401,9 @@ class UserData {
         'id': id,
         'identifier': identifier,
         'name': name,
+        'prayer_sort_mode': prayerSortMode.name,
+        'workout_sort_mode': workoutSortMode.name,
+        'fasting_sort_mode': fastingSortMode.name,
         'prayer_days': prayerDays.map((e) => e.toJson()).toList(),
         'sections': sections.map((e) => e.toJson()).toList(),
         'custom_tabs': customTabs.map((e) => e.toJson()).toList(),

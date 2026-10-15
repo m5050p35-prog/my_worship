@@ -39,7 +39,6 @@ class _MainShellState extends State<MainShell> {
     final s = context.watch<SettingsProvider>();
     final sync = context.watch<SyncProvider>();
 
-    // ═══ بناء قائمة التبويبات ═══
     final tabs = <_Tab>[
       if (s.showPrayer) _Tab(t.t('prayer'), Icons.mosque, _prayer()),
       if (s.showSections)
@@ -162,8 +161,14 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
   Widget _prayer() => PrayerBody(
         days: user.prayerDays,
+        sortMode: user.prayerSortMode,
+        onSortChanged: (m) {
+          user.prayerSortMode = m;
+          _changed();
+        },
         onChanged: _changed,
         onAddDay: () async {
           final d = await showDurationScreen(context);
@@ -193,6 +198,11 @@ class _MainShellState extends State<MainShell> {
   Widget _workout() => WorkoutBody(
         entries: user.workoutEntries,
         config: user.workoutConfig,
+        sortMode: user.workoutSortMode,
+        onSortChanged: (m) {
+          user.workoutSortMode = m;
+          _changed();
+        },
         onChanged: _changed,
         onConfigChanged: (cfg) {
           user.workoutConfig = cfg;
@@ -209,6 +219,11 @@ class _MainShellState extends State<MainShell> {
 
   Widget _fasting() => FastingBody(
         entries: user.fastingEntries,
+        sortMode: user.fastingSortMode,
+        onSortChanged: (m) {
+          user.fastingSortMode = m;
+          _changed();
+        },
         onChanged: _changed,
         onSetup: (n) {
           user.fastingEntries.clear();
