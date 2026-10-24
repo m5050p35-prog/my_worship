@@ -29,9 +29,21 @@ class SupabaseService {
     final userId = row['id'] as String;
 
     final results = await Future.wait([
-      client.from('prayer_days').select().eq('user_id', userId).order('day_number'),
-      client.from('workout_entries').select().eq('user_id', userId).order('entry_number'),
-      client.from('fasting_entries').select().eq('user_id', userId).order('entry_number'),
+      client
+          .from('prayer_days')
+          .select()
+          .eq('user_id', userId)
+          .order('day_number'),
+      client
+          .from('workout_entries')
+          .select()
+          .eq('user_id', userId)
+          .order('entry_number'),
+      client
+          .from('fasting_entries')
+          .select()
+          .eq('user_id', userId)
+          .order('entry_number'),
     ]);
 
     final sectionsData = (row['sections_data'] as List? ?? [])
@@ -56,15 +68,21 @@ class SupabaseService {
         .map((e) => DailyTaskDay.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
+    final rawReminders = (row['reminders_data'] as Map? ?? {}).map((k, v) =>
+        MapEntry(k.toString(),
+            ReminderConfig.fromJson(Map<String, dynamic>.from(v as Map))));
+
     return UserData(
       id: userId,
       identifier: identifier,
       name: (row['name'] ?? '') as String,
+      avatarBase64: (row['avatar_base64'] ?? '') as String,
       prayerSortMode: SortModeExt.fromKey(row['prayer_sort_mode'] as String?),
       workoutSortMode: SortModeExt.fromKey(row['workout_sort_mode'] as String?),
       fastingSortMode: SortModeExt.fromKey(row['fasting_sort_mode'] as String?),
       dailyTasksStartDate: (row['daily_tasks_start_date'] ?? '') as String,
       dailyTaskDays: rawDaily,
+      reminders: rawReminders,
       prayerDays: (results[0] as List)
           .map((e) => PrayerDay.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -84,7 +102,8 @@ class SupabaseService {
     );
   }
 
-  static Future<(bool, String?, UserData?)> saveUserWithResult(UserData u) async {
+  static Future<(bool, String?, UserData?)> saveUserWithResult(
+      UserData u) async {
     try {
       final existing = await client
           .from('users')
@@ -96,6 +115,7 @@ class SupabaseService {
       final payload = <String, dynamic>{
         'identifier': u.identifier,
         'name': u.name,
+        'avatar_base64': u.avatarBase64,
         'workout_config': u.workoutConfig.toJson(),
         'fasting_config': u.fastingConfig.toJson(),
         'sections_data': u.sections.map((e) => e.toJson()).toList(),
@@ -103,6 +123,7 @@ class SupabaseService {
         'lessons_data': u.lessonDays.map((e) => e.toJson()).toList(),
         'daily_tasks_data': u.dailyTaskDays.map((e) => e.toJson()).toList(),
         'daily_tasks_start_date': u.dailyTasksStartDate,
+        'reminders_data': u.reminders.map((k, v) => MapEntry(k, v.toJson())),
         'prayer_sort_mode': u.prayerSortMode.name,
         'workout_sort_mode': u.workoutSortMode.name,
         'fasting_sort_mode': u.fastingSortMode.name,
@@ -126,19 +147,25 @@ class SupabaseService {
       final futures = <Future>[];
       if (u.prayerDays.isNotEmpty) {
         futures.add(client.from('prayer_days').upsert(
-              u.prayerDays.map((d) => {...d.toJson(), 'user_id': userId}).toList(),
+              u.prayerDays
+                  .map((d) => {...d.toJson(), 'user_id': userId})
+                  .toList(),
               onConflict: 'user_id,day_number',
             ));
       }
       if (u.workoutEntries.isNotEmpty) {
         futures.add(client.from('workout_entries').upsert(
-              u.workoutEntries.map((e) => {...e.toJson(), 'user_id': userId}).toList(),
+              u.workoutEntries
+                  .map((e) => {...e.toJson(), 'user_id': userId})
+                  .toList(),
               onConflict: 'user_id,entry_number',
             ));
       }
       if (u.fastingEntries.isNotEmpty) {
         futures.add(client.from('fasting_entries').upsert(
-              u.fastingEntries.map((e) => {...e.toJson(), 'user_id': userId}).toList(),
+              u.fastingEntries
+                  .map((e) => {...e.toJson(), 'user_id': userId})
+                  .toList(),
               onConflict: 'user_id,entry_number',
             ));
       }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../models.dart';
@@ -7,12 +8,25 @@ import '../screens/settings_screen.dart';
 class AppDrawer extends StatelessWidget {
   final UserData user;
   final VoidCallback onLogout;
+  final VoidCallback onChanged;
 
-  const AppDrawer({super.key, required this.user, required this.onLogout});
+  const AppDrawer({
+    super.key,
+    required this.user,
+    required this.onLogout,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    ImageProvider? avatar;
+    if (user.avatarBase64.isNotEmpty) {
+      try {
+        avatar = MemoryImage(base64Decode(user.avatarBase64));
+      } catch (_) {}
+    }
+
     return Drawer(
       child: ListView(
         children: [
@@ -20,10 +34,13 @@ class AppDrawer extends StatelessWidget {
             accountName: Text(user.name.isEmpty ? 'مستخدم' : user.name),
             accountEmail: Text(user.identifier),
             currentAccountPicture: CircleAvatar(
-              child: Text(
-                user.name.isEmpty ? '؟' : user.name[0],
-                style: const TextStyle(fontSize: 24),
-              ),
+              backgroundImage: avatar,
+              child: avatar == null
+                  ? Text(
+                      user.name.isEmpty ? '؟' : user.name[0],
+                      style: const TextStyle(fontSize: 24),
+                    )
+                  : null,
             ),
           ),
           ListTile(
@@ -34,8 +51,11 @@ class AppDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      ProfileScreen(user: user, onLogout: onLogout),
+                  builder: (_) => ProfileScreen(
+                    user: user,
+                    onLogout: onLogout,
+                    onChanged: onChanged,
+                  ),
                 ),
               );
             },

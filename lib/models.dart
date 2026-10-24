@@ -1,6 +1,3 @@
-// ═══════════════════════════════════════════════════════════════
-//  SortMode
-// ═══════════════════════════════════════════════════════════════
 enum SortMode { ascending, descending, incompleteFirst, completeFirst }
 
 extension SortModeExt on SortMode {
@@ -23,9 +20,6 @@ extension SortModeExt on SortMode {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  TabViewMode — نمط عرض التبويبات
-// ═══════════════════════════════════════════════════════════════
 enum TabViewMode { bottomBar, grid, topTabs }
 
 extension TabViewModeExt on TabViewMode {
@@ -45,7 +39,7 @@ extension TabViewModeExt on TabViewMode {
       case TabViewMode.bottomBar:
         return 'شريط عادي أسفل الشاشة';
       case TabViewMode.grid:
-        return 'زر عائم يفتح شبكة';
+        return 'واجهة رئيسية شبكية';
       case TabViewMode.topTabs:
         return 'شريط تمرير أفقي أعلى';
     }
@@ -57,13 +51,63 @@ extension TabViewModeExt on TabViewMode {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  DailyTask — مهمة يومية
-// ═══════════════════════════════════════════════════════════════
+enum ReminderFrequency { daily, alternate, weekdays, weekends, off }
+
+extension ReminderFrequencyExt on ReminderFrequency {
+  String get label {
+    switch (this) {
+      case ReminderFrequency.daily:
+        return 'يومياً';
+      case ReminderFrequency.alternate:
+        return 'يوم ويوم (يوم بعد يوم)';
+      case ReminderFrequency.weekdays:
+        return 'أيام العمل (الاثنين - الجمعة)';
+      case ReminderFrequency.weekends:
+        return 'العطل (السبت - الأحد)';
+      case ReminderFrequency.off:
+        return 'إيقاف';
+    }
+  }
+
+  static ReminderFrequency fromKey(String? k) =>
+      ReminderFrequency.values.firstWhere(
+        (e) => e.name == k,
+        orElse: () => ReminderFrequency.daily,
+      );
+}
+
+class ReminderConfig {
+  bool enabled;
+  int hour;
+  int minute;
+  ReminderFrequency freq;
+
+  ReminderConfig({
+    this.enabled = false,
+    this.hour = 20,
+    this.minute = 0,
+    this.freq = ReminderFrequency.daily,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'hour': hour,
+        'minute': minute,
+        'freq': freq.name,
+      };
+
+  factory ReminderConfig.fromJson(Map<String, dynamic> j) => ReminderConfig(
+        enabled: j['enabled'] ?? false,
+        hour: j['hour'] ?? 20,
+        minute: j['minute'] ?? 0,
+        freq: ReminderFrequencyExt.fromKey(j['freq'] as String?),
+      );
+}
+
 class DailyTask {
   final String id;
   String title;
-  int status; // 0=pending, 1=done, 2=failed
+  int status;
   String note;
 
   DailyTask({
@@ -77,12 +121,8 @@ class DailyTask {
   bool get isFailed => status == 2;
   bool get isPending => status == 0;
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'status': status,
-        'note': note,
-      };
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'title': title, 'status': status, 'note': note};
 
   factory DailyTask.fromJson(Map<String, dynamic> j) => DailyTask(
         id: j['id'] ?? '',
@@ -92,12 +132,9 @@ class DailyTask {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  DailyTaskDay — يوم من أيام المهام
-// ═══════════════════════════════════════════════════════════════
 class DailyTaskDay {
-  final int dayIndex; // 1, 2, 3, ...
-  final String date; // YYYY-MM-DD
+  final int dayIndex;
+  final String date;
   List<DailyTask> tasks;
 
   DailyTaskDay({
@@ -108,7 +145,6 @@ class DailyTaskDay {
 
   int get weekday {
     try {
-      // DateTime.weekday: Mon=1..Sun=7 → نريد Sun=0..Sat=6
       return DateTime.parse(date).weekday % 7;
     } catch (_) {
       return 0;
@@ -131,7 +167,6 @@ class DailyTaskDay {
   int get failedCount => tasks.where((t) => t.isFailed).length;
   int get pendingCount => tasks.where((t) => t.isPending).length;
   int get total => tasks.length;
-
   bool get allDone => tasks.isNotEmpty && doneCount == total;
 
   Map<String, dynamic> toJson() => {
@@ -149,9 +184,6 @@ class DailyTaskDay {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  Lesson — من التبويبات السابقة
-// ═══════════════════════════════════════════════════════════════
 class Lesson {
   final String id;
   String title;
@@ -223,9 +255,6 @@ class LessonDay {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  PrayerDay
-// ═══════════════════════════════════════════════════════════════
 class PrayerDay {
   final int dayNumber;
   final String date;
@@ -266,9 +295,6 @@ class PrayerDay {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  Section
-// ═══════════════════════════════════════════════════════════════
 class SectionDay {
   final int dayNumber;
   final String date;
@@ -282,12 +308,8 @@ class SectionDay {
     this.note = '',
   });
 
-  Map<String, dynamic> toJson() => {
-        'day_number': dayNumber,
-        'date': date,
-        'is_done': isDone,
-        'note': note,
-      };
+  Map<String, dynamic> toJson() =>
+      {'day_number': dayNumber, 'date': date, 'is_done': isDone, 'note': note};
 
   factory SectionDay.fromJson(Map<String, dynamic> j) => SectionDay(
         dayNumber: j['day_number'] ?? 0,
@@ -358,9 +380,6 @@ class Section {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  CustomTab
-// ═══════════════════════════════════════════════════════════════
 class CustomTabDay {
   final int dayNumber;
   final String date;
@@ -456,9 +475,6 @@ class CustomTab {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  Workout
-// ═══════════════════════════════════════════════════════════════
 class WorkoutEntry {
   final int entryNumber;
   final String entryDate;
@@ -506,9 +522,6 @@ class WorkoutConfig {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  Fasting
-// ═══════════════════════════════════════════════════════════════
 class FastingEntry {
   final int entryNumber;
   final String entryDate;
@@ -548,13 +561,11 @@ class FastingConfig {
       FastingConfig(totalDays: j['total_days'] ?? 30);
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  UserData
-// ═══════════════════════════════════════════════════════════════
 class UserData {
   String? id;
   String identifier;
   String name;
+  String avatarBase64;
 
   SortMode prayerSortMode;
   SortMode workoutSortMode;
@@ -562,6 +573,7 @@ class UserData {
 
   String dailyTasksStartDate;
   List<DailyTaskDay> dailyTaskDays;
+  Map<String, ReminderConfig> reminders;
 
   List<PrayerDay> prayerDays;
   List<Section> sections;
@@ -576,11 +588,13 @@ class UserData {
     this.id,
     required this.identifier,
     this.name = '',
+    this.avatarBase64 = '',
     this.prayerSortMode = SortMode.incompleteFirst,
     this.workoutSortMode = SortMode.incompleteFirst,
     this.fastingSortMode = SortMode.incompleteFirst,
     this.dailyTasksStartDate = '',
     List<DailyTaskDay>? dailyTaskDays,
+    Map<String, ReminderConfig>? reminders,
     List<PrayerDay>? prayerDays,
     List<Section>? sections,
     List<CustomTab>? customTabs,
@@ -590,6 +604,7 @@ class UserData {
     List<FastingEntry>? fastingEntries,
     FastingConfig? fastingConfig,
   })  : dailyTaskDays = dailyTaskDays ?? [],
+        reminders = reminders ?? {},
         prayerDays = prayerDays ?? [],
         sections = sections ?? [],
         customTabs = customTabs ?? [],
@@ -611,11 +626,13 @@ class UserData {
         'id': id,
         'identifier': identifier,
         'name': name,
+        'avatar_base64': avatarBase64,
         'prayer_sort_mode': prayerSortMode.name,
         'workout_sort_mode': workoutSortMode.name,
         'fasting_sort_mode': fastingSortMode.name,
         'daily_tasks_start_date': dailyTasksStartDate,
         'daily_task_days': dailyTaskDays.map((e) => e.toJson()).toList(),
+        'reminders': reminders.map((k, v) => MapEntry(k, v.toJson())),
         'prayer_days': prayerDays.map((e) => e.toJson()).toList(),
         'sections': sections.map((e) => e.toJson()).toList(),
         'custom_tabs': customTabs.map((e) => e.toJson()).toList(),

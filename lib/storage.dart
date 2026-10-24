@@ -51,15 +51,21 @@ class Storage {
         .map((e) => DailyTaskDay.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
+    final rawReminders = (j['reminders'] as Map? ?? {}).map((k, v) => MapEntry(
+        k.toString(),
+        ReminderConfig.fromJson(Map<String, dynamic>.from(v as Map))));
+
     return UserData(
       id: j['id'],
       identifier: j['identifier'] ?? '',
       name: j['name'] ?? '',
+      avatarBase64: j['avatar_base64'] ?? '',
       prayerSortMode: SortModeExt.fromKey(j['prayer_sort_mode'] as String?),
       workoutSortMode: SortModeExt.fromKey(j['workout_sort_mode'] as String?),
       fastingSortMode: SortModeExt.fromKey(j['fasting_sort_mode'] as String?),
       dailyTasksStartDate: j['daily_tasks_start_date'] ?? '',
       dailyTaskDays: rawDaily,
+      reminders: rawReminders,
       prayerDays: (j['prayer_days'] as List? ?? [])
           .map((e) => PrayerDay.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
