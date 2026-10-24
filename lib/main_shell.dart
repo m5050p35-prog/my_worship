@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'l10n/app_localizations.dart';
@@ -5,6 +6,7 @@ import 'models.dart';
 import 'providers/settings_provider.dart';
 import 'providers/sync_provider.dart';
 import 'services/sync_service.dart';
+import 'services/notification_service.dart';
 import 'widgets/app_drawer.dart';
 import 'screens/prayer_body.dart';
 import 'screens/sections_body.dart';
@@ -45,27 +47,26 @@ class _MainShellState extends State<MainShell> {
     final s = context.watch<SettingsProvider>();
     final sync = context.watch<SyncProvider>();
 
-    // ═══════════════════════════════════════════════════════════════
-    //  ترتيب التبويبات:
-    //  الأقسام → الدروس → المهام → التمارين → مخصصة → الصلاة → الصوم
-    // ═══════════════════════════════════════════════════════════════
     final tabs = <_Tab>[
       if (s.showSections)
-        _Tab(s.sectionsTabLabel, Icons.list_alt, _sections()),
-      if (s.showLessons) _Tab('الدروس', Icons.menu_book, _lessons()),
+        _Tab('sections', s.sectionsTabLabel, Icons.list_alt, _sections()),
+      if (s.showLessons)
+        _Tab('lessons', 'الدروس', Icons.menu_book, _lessons()),
       if (s.showDailyTasks)
-        _Tab('المهام اليومية', Icons.task_alt, _dailyTasks()),
+        _Tab('daily_tasks', 'المهام اليومية', Icons.task_alt, _dailyTasks()),
       if (s.showWorkout)
-        _Tab(t.t('workout'), Icons.fitness_center, _workout()),
+        _Tab('workout', t.t('workout'), Icons.fitness_center, _workout()),
       for (final ct in user.customTabs.where((e) => e.enabled))
         _Tab(
+          'custom_${ct.id}',
           ct.name,
           Icons.bookmark_outline,
           CustomTabBody(tab: ct, onChanged: _changed),
         ),
-      if (s.showPrayer) _Tab(t.t('prayer'), Icons.mosque, _prayer()),
+      if (s.showPrayer)
+        _Tab('prayer', t.t('prayer'), Icons.mosque, _prayer()),
       if (s.showFasting)
-        _Tab(t.t('fasting'), Icons.nights_stay, _fasting()),
+        _Tab('fasting', t.t('fasting'), Icons.nights_stay, _fasting()),
     ];
 
     if (tabs.isEmpty) {
@@ -75,18 +76,11 @@ class _MainShellState extends State<MainShell> {
       );
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  نمط الشبكة = الواجهة الرئيسية
-    // ═══════════════════════════════════════════════════════════════
     if (s.tabViewMode == TabViewMode.grid) {
       return _buildGridHome(tabs, sync);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  بقية الأنماط: تأكد أن _index صحيح
-    // ═══════════════════════════════════════════════════════════════
-    final safeIndex =
-        (_index >= 0 && _index < tabs.length) ? _index : 0;
+    final safeIndex = (_index >= 0 && _index < tabs.length) ? _index : 0;
 
     switch (s.tabViewMode) {
       case TabViewMode.topTabs:
@@ -99,16 +93,21 @@ class _MainShellState extends State<MainShell> {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  //  نمط الشبكة: الصفحة الرئيسية
+  //  الشبكة الرئيسية
   // ═══════════════════════════════════════════════════════════════
   Widget _buildGridHome(List<_Tab> tabs, SyncProvider sync) {
     final primary = Theme.of(context).colorScheme.primary;
+    ImageProvider? avatar;
+    if (user.avatarBase64.isNotEmpty) {
+      try {
+        avatar = MemoryImage(base64Decode(user.avatarBase64));
+      } catch (_) {}
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'الرئيسية',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('الرئيسية',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: Icon(_syncIcon(sync.status)),
@@ -118,19 +117,18 @@ class _MainShellState extends State<MainShell> {
           const SizedBox(width: 8),
         ],
       ),
-      drawer: AppDrawer(user: user, onLogout: widget.onLogout),
+      drawer: AppDrawer(
+          user: user, onLogout: widget.onLogout, onChanged: _changed),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ═══ بطاقة الترحيب ═══
             Card(
               color: primary.withValues(alpha: 0.08),
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+                  borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -138,35 +136,31 @@ class _MainShellState extends State<MainShell> {
                     CircleAvatar(
                       radius: 28,
                       backgroundColor: primary.withValues(alpha: 0.2),
-                      child: Text(
-                        user.name.isEmpty ? '؟' : user.name[0],
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: primary,
-                        ),
-                      ),
+                      backgroundImage: avatar,
+                      child: avatar == null
+                          ? Text(
+                              user.name.isEmpty ? '؟' : user.name[0],
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: primary,
+                              ),
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'مرحباً بك',
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 12,
-                            ),
-                          ),
+                          Text('مرحباً بك',
+                              style: TextStyle(
+                                  color: Colors.grey[700], fontSize: 12)),
                           Text(
                             user.name.isEmpty ? 'مستخدم' : user.name,
                             style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-
                         ],
                       ),
                     ),
@@ -175,21 +169,15 @@ class _MainShellState extends State<MainShell> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // ═══ عنوان الأقسام ═══
             Row(
               children: [
-                const Text(
-                  'الأقسام',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                const Text('الأقسام',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
@@ -197,22 +185,18 @@ class _MainShellState extends State<MainShell> {
                   child: Text(
                     '${tabs.length}',
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
-                    ),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: primary),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-
-            // ═══ الشبكة ═══
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
@@ -236,42 +220,47 @@ class _MainShellState extends State<MainShell> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _openTab(tab),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: primary.withValues(alpha: 0.15),
-              width: 1,
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: const Icon(Icons.more_vert, size: 20),
+                color: Colors.grey[600],
+                tooltip: 'إعدادات التذكير',
+                onPressed: () => _editReminder(context, tab.key, tab.label),
+              ),
             ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(tab.icon, size: 28, color: primary),
-              ),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  tab.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(tab.icon, size: 28, color: primary),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      tab.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -285,13 +274,16 @@ class _MainShellState extends State<MainShell> {
           appBar: AppBar(
             title: Text(tab.label),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications_active_outlined),
+                tooltip: 'إعدادات التذكير',
+                onPressed: () => _editReminder(context, tab.key, tab.label),
+              ),
               Consumer<SyncProvider>(
                 builder: (_, sync, __) => IconButton(
                   icon: Icon(_syncIcon(sync.status)),
                   tooltip: 'مزامنة الآن',
-                  onPressed: () {
-                    context.read<SyncService>().pushNow(user);
-                  },
+                  onPressed: () => context.read<SyncService>().pushNow(user),
                 ),
               ),
               const SizedBox(width: 8),
@@ -303,8 +295,93 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  Future<void> _editReminder(
+      BuildContext context, String key, String title) async {
+    final current = user.reminders[key] ?? ReminderConfig();
+    bool enabled = current.enabled;
+    TimeOfDay time = TimeOfDay(hour: current.hour, minute: current.minute);
+    ReminderFrequency freq = current.freq;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text('تذكير: $title'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text('تفعيل التذكير'),
+                  value: enabled,
+                  onChanged: (v) => setS(() => enabled = v),
+                ),
+                if (enabled) ...[
+                  ListTile(
+                    title: const Text('الوقت'),
+                    trailing: Text(time.format(ctx)),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                          context: ctx, initialTime: time);
+                      if (t != null) setS(() => time = t);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<ReminderFrequency>(
+                    initialValue: freq, // ✅ تم تصحيحها هنا
+                    decoration: const InputDecoration(
+                        labelText: 'التكرار', border: OutlineInputBorder()),
+                    items: ReminderFrequency.values
+                        .map((e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(e.label),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setS(() => freq = v);
+                    },
+                  ),
+                ]
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != true) return;
+
+    user.reminders[key] = ReminderConfig(
+      enabled: enabled,
+      hour: time.hour,
+      minute: time.minute,
+      freq: freq,
+    );
+
+    if (enabled) {
+      await NotificationService.scheduleSectionReminder(
+        key: key,
+        title: title,
+        cfg: user.reminders[key]!,
+      );
+    } else {
+      await NotificationService.cancelSectionReminders(key);
+    }
+    _changed();
+  }
+
   // ═══════════════════════════════════════════════════════════════
-  //  نمط الشريط السفلي
+  //  بقية الأنماط
   // ═══════════════════════════════════════════════════════════════
   Widget _buildBottomBar(
       List<_Tab> tabs, SyncProvider sync, int idx) {
@@ -313,14 +390,19 @@ class _MainShellState extends State<MainShell> {
         title: Text(tabs[idx].label),
         actions: [
           IconButton(
+            icon: const Icon(Icons.notifications_active_outlined),
+            onPressed: () =>
+                _editReminder(context, tabs[idx].key, tabs[idx].label),
+          ),
+          IconButton(
             icon: Icon(_syncIcon(sync.status)),
-            tooltip: 'مزامنة الآن',
             onPressed: () => context.read<SyncService>().pushNow(user),
           ),
           const SizedBox(width: 8),
         ],
       ),
-      drawer: AppDrawer(user: user, onLogout: widget.onLogout),
+      drawer: AppDrawer(
+          user: user, onLogout: widget.onLogout, onChanged: _changed),
       body: IndexedStack(
         index: idx,
         children: tabs.map((t) => t.body).toList(),
@@ -333,9 +415,6 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  //  نمط التبويبات العلوية
-  // ═══════════════════════════════════════════════════════════════
   Widget _buildTopTabs(
       List<_Tab> tabs, SyncProvider sync, int idx) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -344,8 +423,12 @@ class _MainShellState extends State<MainShell> {
         title: Text(tabs[idx].label),
         actions: [
           IconButton(
+            icon: const Icon(Icons.notifications_active_outlined),
+            onPressed: () =>
+                _editReminder(context, tabs[idx].key, tabs[idx].label),
+          ),
+          IconButton(
             icon: Icon(_syncIcon(sync.status)),
-            tooltip: 'مزامنة الآن',
             onPressed: () => context.read<SyncService>().pushNow(user),
           ),
           const SizedBox(width: 8),
@@ -378,8 +461,7 @@ class _MainShellState extends State<MainShell> {
                         Icon(
                           tabs[i].icon,
                           size: 16,
-                          color:
-                              selected ? Colors.white : Colors.grey[700],
+                          color: selected ? Colors.white : Colors.grey[700],
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -389,9 +471,8 @@ class _MainShellState extends State<MainShell> {
                             fontWeight: selected
                                 ? FontWeight.bold
                                 : FontWeight.normal,
-                            color: selected
-                                ? Colors.white
-                                : Colors.grey[700],
+                            color:
+                                selected ? Colors.white : Colors.grey[700],
                           ),
                         ),
                       ],
@@ -403,7 +484,8 @@ class _MainShellState extends State<MainShell> {
           ),
         ),
       ),
-      drawer: AppDrawer(user: user, onLogout: widget.onLogout),
+      drawer: AppDrawer(
+          user: user, onLogout: widget.onLogout, onChanged: _changed),
       body: IndexedStack(
         index: idx,
         children: tabs.map((t) => t.body).toList(),
@@ -536,13 +618,13 @@ class _MainShellState extends State<MainShell> {
 }
 
 class _Tab {
+  final String key;
   final String label;
   final IconData icon;
   final Widget body;
-  _Tab(this.label, this.icon, this.body);
+  _Tab(this.key, this.label, this.icon, this.body);
 }
 
-// شريط سفلي قابل للتمرير
 class _CustomBottomBar extends StatelessWidget {
   final List<_Tab> tabs;
   final int current;
