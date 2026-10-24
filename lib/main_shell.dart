@@ -166,14 +166,7 @@ class _MainShellState extends State<MainShell> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Text(
-                            user.identifier,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 11,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+
                         ],
                       ),
                     ),
