@@ -52,6 +52,10 @@ class SupabaseService {
         .map((e) => LessonDay.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
+    final rawDaily = (row['daily_tasks_data'] as List? ?? [])
+        .map((e) => DailyTaskDay.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+
     return UserData(
       id: userId,
       identifier: identifier,
@@ -59,6 +63,8 @@ class SupabaseService {
       prayerSortMode: SortModeExt.fromKey(row['prayer_sort_mode'] as String?),
       workoutSortMode: SortModeExt.fromKey(row['workout_sort_mode'] as String?),
       fastingSortMode: SortModeExt.fromKey(row['fasting_sort_mode'] as String?),
+      dailyTasksStartDate: (row['daily_tasks_start_date'] ?? '') as String,
+      dailyTaskDays: rawDaily,
       prayerDays: (results[0] as List)
           .map((e) => PrayerDay.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -95,6 +101,8 @@ class SupabaseService {
         'sections_data': u.sections.map((e) => e.toJson()).toList(),
         'custom_tabs_data': u.customTabs.map((e) => e.toJson()).toList(),
         'lessons_data': u.lessonDays.map((e) => e.toJson()).toList(),
+        'daily_tasks_data': u.dailyTaskDays.map((e) => e.toJson()).toList(),
+        'daily_tasks_start_date': u.dailyTasksStartDate,
         'prayer_sort_mode': u.prayerSortMode.name,
         'workout_sort_mode': u.workoutSortMode.name,
         'fasting_sort_mode': u.fastingSortMode.name,

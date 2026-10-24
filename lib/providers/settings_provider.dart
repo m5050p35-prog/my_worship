@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models.dart';
 
 class SettingsProvider extends ChangeNotifier {
   bool darkMode = false;
   String lang = 'ar';
   bool showPrayer = true;
   bool showSections = true;
+  bool showLessons = true;
   bool showWorkout = true;
   bool showFasting = true;
-  bool showLessons = true;
+  bool showDailyTasks = true;
   String sectionsTabLabel = 'الأقسام';
   bool ascendingOrder = true;
   bool notificationsEnabled = false;
   int notifyHour = 20;
   int notifyMinute = 0;
+
+  // ═══ افتراضي: شبكة عائمة ═══
+  TabViewMode tabViewMode = TabViewMode.grid;
 
   SettingsProvider() {
     _load();
@@ -25,15 +30,17 @@ class SettingsProvider extends ChangeNotifier {
     lang = sp.getString('lang') ?? 'ar';
     showPrayer = sp.getBool('showPrayer') ?? true;
     showSections = sp.getBool('showSections') ?? true;
+    showLessons = sp.getBool('showLessons') ?? true;
     showWorkout = sp.getBool('showWorkout') ?? true;
     showFasting = sp.getBool('showFasting') ?? true;
-    showLessons = sp.getBool('showLessons') ?? true;
+    showDailyTasks = sp.getBool('showDailyTasks') ?? true;
     sectionsTabLabel =
         sp.getString('sectionsLabel') ?? (lang == 'ar' ? 'الأقسام' : 'Sections');
     ascendingOrder = sp.getBool('ascending') ?? true;
     notificationsEnabled = sp.getBool('notifEnabled') ?? false;
     notifyHour = sp.getInt('notifH') ?? 20;
     notifyMinute = sp.getInt('notifM') ?? 0;
+    tabViewMode = TabViewModeExt.fromKey(sp.getString('tabViewMode'));
     notifyListeners();
   }
 
@@ -52,9 +59,10 @@ class SettingsProvider extends ChangeNotifier {
   void setLang(String v) { lang = v; _save('lang', v); notifyListeners(); }
   void setShowPrayer(bool v) { showPrayer = v; _save('showPrayer', v); notifyListeners(); }
   void setShowSections(bool v) { showSections = v; _save('showSections', v); notifyListeners(); }
+  void setShowLessons(bool v) { showLessons = v; _save('showLessons', v); notifyListeners(); }
   void setShowWorkout(bool v) { showWorkout = v; _save('showWorkout', v); notifyListeners(); }
   void setShowFasting(bool v) { showFasting = v; _save('showFasting', v); notifyListeners(); }
-  void setShowLessons(bool v) { showLessons = v; _save('showLessons', v); notifyListeners(); }
+  void setShowDailyTasks(bool v) { showDailyTasks = v; _save('showDailyTasks', v); notifyListeners(); }
   void setSectionsLabel(String v) { sectionsTabLabel = v; _save('sectionsLabel', v); notifyListeners(); }
   void setAscending(bool v) { ascendingOrder = v; _save('ascending', v); notifyListeners(); }
   void setNotifEnabled(bool v) { notificationsEnabled = v; _save('notifEnabled', v); notifyListeners(); }
@@ -63,6 +71,12 @@ class SettingsProvider extends ChangeNotifier {
     notifyMinute = m;
     _save('notifH', h);
     _save('notifM', m);
+    notifyListeners();
+  }
+
+  void setTabViewMode(TabViewMode v) {
+    tabViewMode = v;
+    _save('tabViewMode', v.name);
     notifyListeners();
   }
 }

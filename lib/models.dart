@@ -24,7 +24,133 @@ extension SortModeExt on SortMode {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Lesson — درس واحد
+//  TabViewMode — نمط عرض التبويبات
+// ═══════════════════════════════════════════════════════════════
+enum TabViewMode { bottomBar, grid, topTabs }
+
+extension TabViewModeExt on TabViewMode {
+  String get label {
+    switch (this) {
+      case TabViewMode.bottomBar:
+        return 'شريط سفلي';
+      case TabViewMode.grid:
+        return 'شبكة عائمة';
+      case TabViewMode.topTabs:
+        return 'تبويبات أعلى';
+    }
+  }
+
+  String get hint {
+    switch (this) {
+      case TabViewMode.bottomBar:
+        return 'شريط عادي أسفل الشاشة';
+      case TabViewMode.grid:
+        return 'زر عائم يفتح شبكة';
+      case TabViewMode.topTabs:
+        return 'شريط تمرير أفقي أعلى';
+    }
+  }
+
+  static TabViewMode fromKey(String? k) => TabViewMode.values.firstWhere(
+        (e) => e.name == k,
+        orElse: () => TabViewMode.grid,
+      );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DailyTask — مهمة يومية
+// ═══════════════════════════════════════════════════════════════
+class DailyTask {
+  final String id;
+  String title;
+  int status; // 0=pending, 1=done, 2=failed
+  String note;
+
+  DailyTask({
+    required this.id,
+    required this.title,
+    this.status = 0,
+    this.note = '',
+  });
+
+  bool get isDone => status == 1;
+  bool get isFailed => status == 2;
+  bool get isPending => status == 0;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'status': status,
+        'note': note,
+      };
+
+  factory DailyTask.fromJson(Map<String, dynamic> j) => DailyTask(
+        id: j['id'] ?? '',
+        title: j['title'] ?? '',
+        status: (j['status'] as num?)?.toInt() ?? 0,
+        note: j['note'] ?? '',
+      );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DailyTaskDay — يوم من أيام المهام
+// ═══════════════════════════════════════════════════════════════
+class DailyTaskDay {
+  final int dayIndex; // 1, 2, 3, ...
+  final String date; // YYYY-MM-DD
+  List<DailyTask> tasks;
+
+  DailyTaskDay({
+    required this.dayIndex,
+    required this.date,
+    List<DailyTask>? tasks,
+  }) : tasks = tasks ?? [];
+
+  int get weekday {
+    try {
+      // DateTime.weekday: Mon=1..Sun=7 → نريد Sun=0..Sat=6
+      return DateTime.parse(date).weekday % 7;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static const _weekdayNames = [
+    'الأحد',
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
+  ];
+
+  String get weekdayName => _weekdayNames[weekday];
+
+  int get doneCount => tasks.where((t) => t.isDone).length;
+  int get failedCount => tasks.where((t) => t.isFailed).length;
+  int get pendingCount => tasks.where((t) => t.isPending).length;
+  int get total => tasks.length;
+
+  bool get allDone => tasks.isNotEmpty && doneCount == total;
+
+  Map<String, dynamic> toJson() => {
+        'day_index': dayIndex,
+        'date': date,
+        'tasks': tasks.map((e) => e.toJson()).toList(),
+      };
+
+  factory DailyTaskDay.fromJson(Map<String, dynamic> j) => DailyTaskDay(
+        dayIndex: j['day_index'] ?? 0,
+        date: j['date'] ?? '',
+        tasks: (j['tasks'] as List? ?? [])
+            .map((e) => DailyTask.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+      );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Lesson — من التبويبات السابقة
 // ═══════════════════════════════════════════════════════════════
 class Lesson {
   final String id;
@@ -39,12 +165,8 @@ class Lesson {
     this.isDone = false,
   });
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'note': note,
-        'is_done': isDone,
-      };
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'title': title, 'note': note, 'is_done': isDone};
 
   factory Lesson.fromJson(Map<String, dynamic> j) => Lesson(
         id: j['id'] ?? '',
@@ -54,17 +176,12 @@ class Lesson {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  LessonDay — يوم من أيام الأسبوع مع دروسه
-// ═══════════════════════════════════════════════════════════════
 class LessonDay {
-  final int dayOfWeek; // 0=الأحد .. 6=السبت
+  final int dayOfWeek;
   List<Lesson> lessons;
 
-  LessonDay({
-    required this.dayOfWeek,
-    List<Lesson>? lessons,
-  }) : lessons = lessons ?? [];
+  LessonDay({required this.dayOfWeek, List<Lesson>? lessons})
+      : lessons = lessons ?? [];
 
   static const dayNames = [
     'الأحد',
@@ -150,7 +267,7 @@ class PrayerDay {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  SectionDay
+//  Section
 // ═══════════════════════════════════════════════════════════════
 class SectionDay {
   final int dayNumber;
@@ -180,9 +297,6 @@ class SectionDay {
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  Section
-// ═══════════════════════════════════════════════════════════════
 class Section {
   final String id;
   String name;
@@ -260,12 +374,8 @@ class CustomTabDay {
     this.note = '',
   });
 
-  Map<String, dynamic> toJson() => {
-        'day_number': dayNumber,
-        'date': date,
-        'is_done': isDone,
-        'note': note,
-      };
+  Map<String, dynamic> toJson() =>
+      {'day_number': dayNumber, 'date': date, 'is_done': isDone, 'note': note};
 
   factory CustomTabDay.fromJson(Map<String, dynamic> j) => CustomTabDay(
         dayNumber: j['day_number'] ?? 0,
@@ -450,6 +560,9 @@ class UserData {
   SortMode workoutSortMode;
   SortMode fastingSortMode;
 
+  String dailyTasksStartDate;
+  List<DailyTaskDay> dailyTaskDays;
+
   List<PrayerDay> prayerDays;
   List<Section> sections;
   List<CustomTab> customTabs;
@@ -466,6 +579,8 @@ class UserData {
     this.prayerSortMode = SortMode.incompleteFirst,
     this.workoutSortMode = SortMode.incompleteFirst,
     this.fastingSortMode = SortMode.incompleteFirst,
+    this.dailyTasksStartDate = '',
+    List<DailyTaskDay>? dailyTaskDays,
     List<PrayerDay>? prayerDays,
     List<Section>? sections,
     List<CustomTab>? customTabs,
@@ -474,7 +589,8 @@ class UserData {
     WorkoutConfig? workoutConfig,
     List<FastingEntry>? fastingEntries,
     FastingConfig? fastingConfig,
-  })  : prayerDays = prayerDays ?? [],
+  })  : dailyTaskDays = dailyTaskDays ?? [],
+        prayerDays = prayerDays ?? [],
         sections = sections ?? [],
         customTabs = customTabs ?? [],
         lessonDays = lessonDays ?? _emptyWeek(),
@@ -483,17 +599,12 @@ class UserData {
         fastingEntries = fastingEntries ?? [],
         fastingConfig = fastingConfig ?? FastingConfig();
 
-  /// يضمن وجود 7 أيام دائماً
   static List<LessonDay> _emptyWeek() =>
       List.generate(7, (i) => LessonDay(dayOfWeek: i));
 
-  /// يضمن وجود 7 أيام (للتحميل من JSON)
   static List<LessonDay> normalizeWeek(List<LessonDay> input) {
     final map = {for (final d in input) d.dayOfWeek: d};
-    return List.generate(
-      7,
-      (i) => map[i] ?? LessonDay(dayOfWeek: i),
-    );
+    return List.generate(7, (i) => map[i] ?? LessonDay(dayOfWeek: i));
   }
 
   Map<String, dynamic> toJson() => {
@@ -503,6 +614,8 @@ class UserData {
         'prayer_sort_mode': prayerSortMode.name,
         'workout_sort_mode': workoutSortMode.name,
         'fasting_sort_mode': fastingSortMode.name,
+        'daily_tasks_start_date': dailyTasksStartDate,
+        'daily_task_days': dailyTaskDays.map((e) => e.toJson()).toList(),
         'prayer_days': prayerDays.map((e) => e.toJson()).toList(),
         'sections': sections.map((e) => e.toJson()).toList(),
         'custom_tabs': customTabs.map((e) => e.toJson()).toList(),

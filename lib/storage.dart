@@ -6,7 +6,6 @@ class Storage {
   static const _kUsers = 'users_store';
   static const _kSession = 'current_user_email';
 
-  // ═══ الجلسة ═══
   static Future<void> saveSession(String email) async {
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kSession, email);
@@ -22,7 +21,6 @@ class Storage {
     await sp.remove(_kSession);
   }
 
-  // ═══ المستخدمون ═══
   static Future<Map<String, dynamic>> _readAll() async {
     final sp = await SharedPreferences.getInstance();
     final s = sp.getString(_kUsers);
@@ -49,6 +47,10 @@ class Storage {
         .map((e) => LessonDay.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
+    final rawDaily = (j['daily_task_days'] as List? ?? [])
+        .map((e) => DailyTaskDay.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+
     return UserData(
       id: j['id'],
       identifier: j['identifier'] ?? '',
@@ -56,6 +58,8 @@ class Storage {
       prayerSortMode: SortModeExt.fromKey(j['prayer_sort_mode'] as String?),
       workoutSortMode: SortModeExt.fromKey(j['workout_sort_mode'] as String?),
       fastingSortMode: SortModeExt.fromKey(j['fasting_sort_mode'] as String?),
+      dailyTasksStartDate: j['daily_tasks_start_date'] ?? '',
+      dailyTaskDays: rawDaily,
       prayerDays: (j['prayer_days'] as List? ?? [])
           .map((e) => PrayerDay.fromJson(Map<String, dynamic>.from(e)))
           .toList(),

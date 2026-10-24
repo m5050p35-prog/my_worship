@@ -18,28 +18,13 @@ class SettingsScreen extends StatelessWidget {
     final t = AppLocalizations.of(context);
     final s = context.watch<SettingsProvider>();
     final sync = context.watch<SyncProvider>();
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(title: Text(t.t('settings'))),
       body: ListView(
         children: [
-          if (user != null) ...[
-            const _Header('التبويبات المخصصة'),
-            ListTile(
-              leading: const Icon(Icons.dashboard_customize),
-              title: const Text('إدارة التبويبات المخصصة'),
-              subtitle: Text('${user!.customTabs.length} تبويب'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ManageTabsScreen(user: user!),
-                ),
-              ),
-            ),
-            const Divider(),
-          ],
-
+          // ═══ المظهر ═══
           const _Header('المظهر'),
           SwitchListTile(
             title: Text(t.t('dark_mode')),
@@ -62,6 +47,27 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          // ═══ نمط العرض ═══
+          const Divider(),
+          const _Header('نمط عرض التبويبات'),
+          ...TabViewMode.values.map((m) {
+            final selected = s.tabViewMode == m;
+            return ListTile(
+              leading: Icon(_iconForViewMode(m)),
+              title: Text(m.label),
+              subtitle:
+                  Text(m.hint, style: const TextStyle(fontSize: 12)),
+              trailing: Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: selected ? primary : Colors.grey,
+              ),
+              onTap: () => s.setTabViewMode(m),
+            );
+          }),
+
+          // ═══ التبويبات الأساسية ═══
           const Divider(),
           const _Header('التبويبات الأساسية'),
           SwitchListTile(
@@ -79,6 +85,12 @@ class SettingsScreen extends StatelessWidget {
             value: s.showLessons,
             onChanged: s.setShowLessons,
             secondary: const Icon(Icons.menu_book),
+          ),
+          SwitchListTile(
+            title: const Text('المهام اليومية'),
+            value: s.showDailyTasks,
+            onChanged: s.setShowDailyTasks,
+            secondary: const Icon(Icons.task_alt),
           ),
           SwitchListTile(
             title: Text(t.t('workout')),
@@ -119,6 +131,25 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
+          // ═══ التبويبات المخصصة ═══
+          if (user != null) ...[
+            const Divider(),
+            const _Header('التبويبات المخصصة'),
+            ListTile(
+              leading: const Icon(Icons.dashboard_customize),
+              title: const Text('إدارة التبويبات المخصصة'),
+              subtitle: Text('${user!.customTabs.length} تبويب'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ManageTabsScreen(user: user!),
+                ),
+              ),
+            ),
+          ],
+
+          // ═══ الإشعارات ═══
           const Divider(),
           const _Header('الإشعارات'),
           SwitchListTile(
@@ -127,8 +158,8 @@ class SettingsScreen extends StatelessWidget {
             onChanged: (v) async {
               s.setNotifEnabled(v);
               if (v) {
-                await NotificationService.scheduleDaily(
-                    s.notifyHour, s.notifyMinute, 'تذكير', 'لا تنسَ متابعة عباداتك');
+                await NotificationService.scheduleDaily(s.notifyHour,
+                    s.notifyMinute, 'تذكير', 'لا تنسَ متابعة عباداتك');
               } else {
                 await NotificationService.cancelAll();
               }
@@ -161,10 +192,11 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => NotificationService.showTest(),
           ),
 
+          // ═══ المزامنة ═══
           const Divider(),
           const _Header('المزامنة'),
           ListTile(
-            leading: Icon(_iconFor(sync.status)),
+            leading: Icon(_iconForSync(sync.status)),
             title: const Text('الحالة'),
             subtitle: Text(sync.lastError ?? sync.status.name),
           ),
@@ -189,12 +221,24 @@ class SettingsScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const SupabaseDebugScreen()),
             ),
           ),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  IconData _iconFor(SyncStatus s) {
+  IconData _iconForViewMode(TabViewMode m) {
+    switch (m) {
+      case TabViewMode.bottomBar:
+        return Icons.view_agenda;
+      case TabViewMode.grid:
+        return Icons.apps;
+      case TabViewMode.topTabs:
+        return Icons.view_week;
+    }
+  }
+
+  IconData _iconForSync(SyncStatus s) {
     switch (s) {
       case SyncStatus.ok:
         return Icons.cloud_done;

@@ -12,6 +12,7 @@ import 'screens/workout_body.dart';
 import 'screens/fasting_body.dart';
 import 'screens/custom_tab_body.dart';
 import 'screens/lessons_body.dart';
+import 'screens/daily_tasks_body.dart';
 import 'duration_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -34,27 +35,44 @@ class _MainShellState extends State<MainShell> {
     context.read<SyncService>().schedulePush(user);
   }
 
+  void _selectTab(int i) {
+    if (i < 0) return;
+    setState(() => _index = i);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final s = context.watch<SettingsProvider>();
     final sync = context.watch<SyncProvider>();
 
+    // ═══════════════════════════════════════════════════════════════
+    //  ترتيب التبويبات:
+    //  1. الأقسام
+    //  2. الدروس
+    //  3. المهام اليومية
+    //  4. التمارين
+    //  5. التبويبات المخصصة
+    //  6. الصلاة (قبل الأخير)
+    //  7. الصوم (الأخير)
+    // ═══════════════════════════════════════════════════════════════
     final tabs = <_Tab>[
-      if (s.showPrayer) _Tab(t.t('prayer'), Icons.mosque, _prayer()),
       if (s.showSections)
         _Tab(s.sectionsTabLabel, Icons.list_alt, _sections()),
       if (s.showLessons) _Tab('الدروس', Icons.menu_book, _lessons()),
+      if (s.showDailyTasks)
+        _Tab('المهام اليومية', Icons.task_alt, _dailyTasks()),
       if (s.showWorkout)
         _Tab(t.t('workout'), Icons.fitness_center, _workout()),
-      if (s.showFasting)
-        _Tab(t.t('fasting'), Icons.nights_stay, _fasting()),
       for (final ct in user.customTabs.where((e) => e.enabled))
         _Tab(
           ct.name,
           Icons.bookmark_outline,
           CustomTabBody(tab: ct, onChanged: _changed),
         ),
+      if (s.showPrayer) _Tab(t.t('prayer'), Icons.mosque, _prayer()),
+      if (s.showFasting)
+        _Tab(t.t('fasting'), Icons.nights_stay, _fasting()),
     ];
 
     if (tabs.isEmpty) {
@@ -66,6 +84,21 @@ class _MainShellState extends State<MainShell> {
 
     if (_index >= tabs.length) _index = 0;
 
+    // ✅ بدون default — كل الحالات مغطاة
+    switch (s.tabViewMode) {
+      case TabViewMode.topTabs:
+        return _buildTopTabs(tabs, sync);
+      case TabViewMode.grid:
+        return _buildGrid(tabs, sync);
+      case TabViewMode.bottomBar:
+        return _buildBottomBar(tabs, sync);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  نمط 1: شريط سفلي
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildBottomBar(List<_Tab> tabs, SyncProvider sync) {
     return Scaffold(
       appBar: AppBar(
         title: Text(tabs[_index].label),
@@ -79,73 +112,222 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
       drawer: AppDrawer(user: user, onLogout: widget.onLogout),
-      body: tabs[_index].body,
-      bottomNavigationBar: _buildBottomBar(tabs),
+      body: IndexedStack(
+        index: _index,
+        children: tabs.map((t) => t.body).toList(),
+      ),
+      bottomNavigationBar: _CustomBottomBar(
+        tabs: tabs,
+        current: _index,
+        onSelect: _selectTab,
+      ),
     );
   }
 
-  Widget _buildBottomBar(List<_Tab> tabs) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+  // ═══════════════════════════════════════════════════════════════
+  //  نمط 2: شبكة عائمة (الافتراضي الآن)
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildGrid(List<_Tab> tabs, SyncProvider sync) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(tabs[_index].label),
+        actions: [
+          IconButton(
+            icon: Icon(_syncIcon(sync.status)),
+            tooltip: 'مزامنة الآن',
+            onPressed: () => context.read<SyncService>().pushNow(user),
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 62,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            itemCount: tabs.length,
-            itemBuilder: (_, i) {
-              final selected = i == _index;
-              final tab = tabs[i];
-              final primary = Theme.of(context).colorScheme.primary;
-              return InkWell(
-                onTap: () => setState(() => _index = i),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? primary.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
+      drawer: AppDrawer(user: user, onLogout: widget.onLogout),
+      body: IndexedStack(
+        index: _index,
+        children: tabs.map((t) => t.body).toList(),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: primary,
+        tooltip: 'اختر التبويب',
+        onPressed: () => _showGridSheet(tabs),
+        child: const Icon(Icons.apps, color: Colors.white),
+      ),
+    );
+  }
+
+  void _showGridSheet(List<_Tab> tabs) {
+    final primary = Theme.of(context).colorScheme.primary;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'اختر التبويب',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.6,
+                ),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1,
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        tab.icon,
-                        size: 22,
-                        color: selected ? primary : Colors.grey,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        tab.label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight:
-                              selected ? FontWeight.bold : FontWeight.normal,
-                          color: selected ? primary : Colors.grey,
+                  itemCount: tabs.length,
+                  itemBuilder: (_, i) {
+                    final selected = i == _index;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _selectTab(i);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? primary.withValues(alpha: 0.15)
+                              : Colors.grey.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: selected ? primary : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              tabs[i].icon,
+                              size: 36,
+                              color: selected ? primary : Colors.grey[700],
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              child: Text(
+                                tabs[i].label,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: selected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: selected ? primary : null,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  نمط 3: تبويبات أعلى
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildTopTabs(List<_Tab> tabs, SyncProvider sync) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(tabs[_index].label),
+        actions: [
+          IconButton(
+            icon: Icon(_syncIcon(sync.status)),
+            tooltip: 'مزامنة الآن',
+            onPressed: () => context.read<SyncService>().pushNow(user),
+          ),
+          const SizedBox(width: 8),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              itemCount: tabs.length,
+              itemBuilder: (_, i) {
+                final selected = i == _index;
+                return GestureDetector(
+                  onTap: () => _selectTab(i),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? primary
+                          : Colors.grey.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          tabs[i].icon,
+                          size: 16,
+                          color: selected ? Colors.white : Colors.grey[700],
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          tabs[i].label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: selected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color:
+                                selected ? Colors.white : Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+      drawer: AppDrawer(user: user, onLogout: widget.onLogout),
+      body: IndexedStack(
+        index: _index,
+        children: tabs.map((t) => t.body).toList(),
       ),
     );
   }
@@ -199,6 +381,9 @@ class _MainShellState extends State<MainShell> {
 
   Widget _lessons() =>
       LessonsBody(lessonDays: user.lessonDays, onChanged: _changed);
+
+  Widget _dailyTasks() =>
+      DailyTasksBody(user: user, onChanged: _changed);
 
   Widget _workout() => WorkoutBody(
         entries: user.workoutEntries,
@@ -276,4 +461,83 @@ class _Tab {
   final IconData icon;
   final Widget body;
   _Tab(this.label, this.icon, this.body);
+}
+
+// شريط سفلي قابل للتمرير
+class _CustomBottomBar extends StatelessWidget {
+  final List<_Tab> tabs;
+  final int current;
+  final void Function(int) onSelect;
+
+  const _CustomBottomBar({
+    required this.tabs,
+    required this.current,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 62,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: tabs.length,
+            itemBuilder: (_, i) {
+              final selected = i == current;
+              return InkWell(
+                onTap: () => onSelect(i),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? primary.withValues(alpha: 0.12)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        tabs[i].icon,
+                        size: 22,
+                        color: selected ? primary : Colors.grey,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        tabs[i].label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight:
+                              selected ? FontWeight.bold : FontWeight.normal,
+                          color: selected ? primary : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 }
