@@ -33,42 +33,56 @@ class _MainShellState extends State<MainShell> {
 
   UserData get user => widget.user;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoOpen());
+  }
+
   void _changed() {
     setState(() {});
     context.read<SyncService>().schedulePush(user);
   }
 
   void _selectTab(int i) {
+    if (_index == i) return;
+    final s = context.read<SettingsProvider>();
+    final tabs = _buildTabs(s);
+    if (i < 0 || i >= tabs.length) return;
     setState(() => _index = i);
+    user.lastTabKey = tabs[i].key;
+    context.read<SyncService>().schedulePush(user);
   }
 
-  IconData _iconForTab(String key) {
-    if (key == 'lessons') return Icons.menu_book;
-    if (key == 'daily_tasks') return Icons.task_alt;
-    if (key == 'expenses') return Icons.account_balance_wallet;
-    if (key == 'workout') return Icons.fitness_center;
-    if (key == 'prayer') return Icons.mosque;
-    if (key == 'fasting') return Icons.nights_stay;
-    return Icons.bookmark;
+  // ═══ فتح آخر صفحة محفوظة ═══
+  void _maybeAutoOpen() {
+    if (!mounted) return;
+    final s = context.read<SettingsProvider>();
+    if (!s.autoOpenLastTab) return;
+    final key = user.lastTabKey;
+    if (key.isEmpty) return;
+
+    final tabs = _buildTabs(s);
+    final idx = tabs.indexWhere((t) => t.key == key);
+    if (idx < 0) return;
+
+    if (s.tabViewMode == TabViewMode.grid) {
+      _openTab(tabs[idx], idx);
+    } else {
+      setState(() => _index = idx);
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  List<_Tab> _buildTabs(SettingsProvider s) {
     final t = AppLocalizations.of(context);
-    final s = context.watch<SettingsProvider>();
-    final sync = context.watch<SyncProvider>();
-
-    // ═══════════════════════════════════════════════════════════════
-    //  التبويبات (بدون الأقسام - أُضيف المصرف)
-    // ═══════════════════════════════════════════════════════════════
-    final tabs = <_Tab>[
+    return <_Tab>[
       if (s.showLessons)
         _Tab('lessons', 'الدروس', Icons.menu_book, _lessons()),
       if (s.showDailyTasks)
         _Tab('daily_tasks', 'المهام اليومية', Icons.task_alt, _dailyTasks()),
       if (s.showExpenses)
-        _Tab('expenses', 'المصرف الأسبوعي', Icons.account_balance_wallet,
-            _expenses()),
+        _Tab('expenses', 'المصرف الأسبوعي',
+            Icons.account_balance_wallet, _expenses()),
       if (s.showWorkout)
         _Tab('workout', t.t('workout'), Icons.fitness_center, _workout()),
       for (final ct in user.customTabs.where((e) => e.enabled))
@@ -83,27 +97,40 @@ class _MainShellState extends State<MainShell> {
       if (s.showFasting)
         _Tab('fasting', t.t('fasting'), Icons.nights_stay, _fasting()),
     ];
+  }
+
+  IconData _iconForTab(String key) {
+    if (key == 'lessons') return Icons.menu_book;
+    if (key == 'daily_tasks') return Icons.task_alt;
+    if (key == 'expenses') return Icons.account_balance_wallet;
+    if (key == 'workout') return Icons.fitness_center;
+    if (key == 'prayer') return Icons.mosque;
+    if (key == 'fasting') return Icons.nights_stay;
+    return Icons.bookmark;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<SettingsProvider>();
+    final sync = context.watch<SyncProvider>();
+    final tabs = _buildTabs(s);
 
     if (tabs.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text(t.t('app_name'))),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).t('app_name'))),
         body: const Center(child: Text('لا توجد تبويبات مفعّلة')),
       );
-    }
-
-    if (s.tabViewMode == TabViewMode.grid) {
-      return _buildGridHome(tabs, sync);
     }
 
     final safeIndex = (_index >= 0 && _index < tabs.length) ? _index : 0;
 
     switch (s.tabViewMode) {
-      case TabViewMode.topTabs:
-        return _buildTopTabs(tabs, sync, safeIndex);
-      case TabViewMode.bottomBar:
-        return _buildBottomBar(tabs, sync, safeIndex);
       case TabViewMode.grid:
         return _buildGridHome(tabs, sync);
+      case TabViewMode.bottomBar:
+        return _buildBottomBar(tabs, sync, safeIndex);
+      case TabViewMode.topTabs:
+        return _buildTopTabs(tabs, sync, safeIndex);
     }
   }
 
@@ -293,6 +320,9 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _openTab(_Tab tab, int index) {
+    user.lastTabKey = tab.key;
+    context.read<SyncService>().schedulePush(user);
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -300,7 +330,12 @@ class _MainShellState extends State<MainShell> {
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () {
+                // العودة للشبكة = امسح آخر تبويب
+                user.lastTabKey = '';
+                context.read<SyncService>().schedulePush(user);
+                Navigator.pop(ctx);
+              },
             ),
             title: Row(
               children: [
@@ -423,7 +458,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  //  بقية الأنماط
+  //  الشريط السفلي
   // ═══════════════════════════════════════════════════════════════
   Widget _buildBottomBar(List<_Tab> tabs, SyncProvider sync, int idx) {
     return Scaffold(
@@ -456,6 +491,9 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  التبويبات العلوية
+  // ═══════════════════════════════════════════════════════════════
   Widget _buildTopTabs(List<_Tab> tabs, SyncProvider sync, int idx) {
     final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
@@ -546,6 +584,7 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
   Widget _prayer() => PrayerBody(
         days: user.prayerDays,
         sortMode: user.prayerSortMode,
@@ -576,8 +615,15 @@ class _MainShellState extends State<MainShell> {
         },
       );
 
-  Widget _lessons() =>
-      LessonsBody(lessonDays: user.lessonDays, onChanged: _changed);
+  Widget _lessons() => LessonsBody(
+        lessonDays: user.lessonDays,
+        initialDay: user.lessonsSelectedDay,
+        onDayChanged: (d) {
+          user.lessonsSelectedDay = d;
+          context.read<SyncService>().schedulePush(user);
+        },
+        onChanged: _changed,
+      );
 
   Widget _dailyTasks() => DailyTasksBody(user: user, onChanged: _changed);
 

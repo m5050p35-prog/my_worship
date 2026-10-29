@@ -3,11 +3,15 @@ import '../models.dart';
 
 class LessonsBody extends StatefulWidget {
   final List<LessonDay> lessonDays;
+  final int initialDay; // -1 = today
+  final void Function(int)? onDayChanged;
   final VoidCallback onChanged;
 
   const LessonsBody({
     super.key,
     required this.lessonDays,
+    this.initialDay = -1,
+    this.onDayChanged,
     required this.onChanged,
   });
 
@@ -21,9 +25,11 @@ class _LessonsBodyState extends State<LessonsBody> {
   @override
   void initState() {
     super.initState();
-    // اليوم الحالي: DateTime.sunday=7 → 0, ... saturday=6
-    final now = DateTime.now().weekday % 7;
-    _selectedDay = now;
+    if (widget.initialDay >= 0 && widget.initialDay <= 6) {
+      _selectedDay = widget.initialDay;
+    } else {
+      _selectedDay = DateTime.now().weekday % 7;
+    }
   }
 
   LessonDay get current => widget.lessonDays[_selectedDay];
@@ -232,7 +238,10 @@ class _LessonsBodyState extends State<LessonsBody> {
               final primary = Theme.of(context).colorScheme.primary;
 
               return GestureDetector(
-                onTap: () => setState(() => _selectedDay = i),
+                onTap: () {
+                  setState(() => _selectedDay = i);
+                  widget.onDayChanged?.call(i);
+                },
                 child: Container(
                   width: 62,
                   margin:

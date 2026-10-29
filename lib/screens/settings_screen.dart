@@ -64,6 +64,19 @@ class SettingsScreen extends StatelessWidget {
             );
           }),
 
+          // ═══ استعادة الحالة ═══
+          const Divider(),
+          const _Header('استعادة الحالة'),
+          SwitchListTile(
+            title: const Text('فتح آخر صفحة تلقائياً'),
+            subtitle: const Text(
+                'يفتح آخر تبويب كنت فيه عند تشغيل التطبيق',
+                style: TextStyle(fontSize: 12)),
+            value: s.autoOpenLastTab,
+            onChanged: s.setAutoOpenLastTab,
+            secondary: const Icon(Icons.restore),
+          ),
+
           // ═══ التبويبات (بدون الأقسام) ═══
           const Divider(),
           const _Header('التبويبات الأساسية'),

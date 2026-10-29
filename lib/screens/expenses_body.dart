@@ -52,6 +52,12 @@ class _ExpensesBodyState extends State<ExpensesBody> {
       (user.reminders['expenses']?.enabled) ?? false;
 
   @override
+  void initState() {
+    super.initState();
+    _viewMode = widget.user.expensesViewMode;
+  }
+
+  @override
   void dispose() {
     _descCtrl.dispose();
     _amtCtrl.dispose();
@@ -215,7 +221,11 @@ class _ExpensesBodyState extends State<ExpensesBody> {
               ),
             ],
             selected: {_viewMode},
-            onSelectionChanged: (s) => setState(() => _viewMode = s.first),
+            onSelectionChanged: (s) {
+              setState(() => _viewMode = s.first);
+              widget.user.expensesViewMode = _viewMode;
+              widget.onChanged();
+            },
           ),
         ),
         const SizedBox(height: 8),

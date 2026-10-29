@@ -615,6 +615,10 @@ class UserData {
   List<DailyTaskDay> dailyTaskDays;
   Map<String, ReminderConfig> reminders;
 
+  String lastTabKey;
+  int lessonsSelectedDay;
+  int expensesViewMode;
+
   List<Expense> expenses;
 
   List<PrayerDay> prayerDays;
@@ -635,6 +639,9 @@ class UserData {
     this.workoutSortMode = SortMode.incompleteFirst,
     this.fastingSortMode = SortMode.incompleteFirst,
     this.dailyTasksStartDate = '',
+    this.lastTabKey = '',
+    this.lessonsSelectedDay = -1,
+    this.expensesViewMode = 0,
     List<DailyTaskDay>? dailyTaskDays,
     Map<String, ReminderConfig>? reminders,
     List<Expense>? expenses,
@@ -675,6 +682,9 @@ class UserData {
         'workout_sort_mode': workoutSortMode.name,
         'fasting_sort_mode': fastingSortMode.name,
         'daily_tasks_start_date': dailyTasksStartDate,
+        'last_tab_key': lastTabKey,
+        'lessons_selected_day': lessonsSelectedDay,
+        'expenses_view_mode': expensesViewMode,
         'daily_task_days': dailyTaskDays.map((e) => e.toJson()).toList(),
         'reminders': reminders.map((k, v) => MapEntry(k, v.toJson())),
         'expenses': expenses.map((e) => e.toJson()).toList(),

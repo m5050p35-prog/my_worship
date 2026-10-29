@@ -28,6 +28,7 @@ Future<void> main() async {
           ),
         ),
       );
+
   try {
     await SupabaseService.init();
   } catch (e) {
@@ -38,15 +39,20 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('Notif init: $e');
   }
-  runApp(const App());
+
+  // ═══ تحميل الإعدادات قبل بناء الواجهة ═══
+  final settings = SettingsProvider();
+  await settings.load();
+
+  runApp(App(settings: settings));
 }
 
 class App extends StatelessWidget {
-  const App({super.key});
+  final SettingsProvider settings;
+  const App({super.key, required this.settings});
 
   @override
   Widget build(BuildContext context) {
-    final settings = SettingsProvider();
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settings),

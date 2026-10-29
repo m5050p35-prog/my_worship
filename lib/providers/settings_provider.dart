@@ -17,12 +17,12 @@ class SettingsProvider extends ChangeNotifier {
   int notifyHour = 20;
   int notifyMinute = 0;
   TabViewMode tabViewMode = TabViewMode.grid;
+  bool autoOpenLastTab = true; // ═══ جديد ═══
+  bool isLoaded = false;
 
-  SettingsProvider() {
-    _load();
-  }
-
-  Future<void> _load() async {
+  /// يجب استدعاؤها قبل runApp()
+  Future<void> load() async {
+    if (isLoaded) return;
     final sp = await SharedPreferences.getInstance();
     darkMode = sp.getBool('dark') ?? false;
     lang = sp.getString('lang') ?? 'ar';
@@ -39,6 +39,8 @@ class SettingsProvider extends ChangeNotifier {
     notifyHour = sp.getInt('notifH') ?? 20;
     notifyMinute = sp.getInt('notifM') ?? 0;
     tabViewMode = TabViewModeExt.fromKey(sp.getString('tabViewMode'));
+    autoOpenLastTab = sp.getBool('autoOpenLastTab') ?? true;
+    isLoaded = true;
     notifyListeners();
   }
 
@@ -75,6 +77,12 @@ class SettingsProvider extends ChangeNotifier {
   void setTabViewMode(TabViewMode v) {
     tabViewMode = v;
     _save('tabViewMode', v.name);
+    notifyListeners();
+  }
+
+  void setAutoOpenLastTab(bool v) {
+    autoOpenLastTab = v;
+    _save('autoOpenLastTab', v);
     notifyListeners();
   }
 }
