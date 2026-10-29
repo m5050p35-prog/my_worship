@@ -8,6 +8,7 @@ import 'providers/sync_provider.dart';
 import 'services/sync_service.dart';
 import 'services/notification_service.dart';
 import 'widgets/app_drawer.dart';
+import 'widgets/shimmer_image.dart';
 import 'screens/prayer_body.dart';
 import 'screens/sections_body.dart';
 import 'screens/workout_body.dart';
@@ -39,6 +40,17 @@ class _MainShellState extends State<MainShell> {
 
   void _selectTab(int i) {
     setState(() => _index = i);
+  }
+
+  // أيقونة لكل تبويب (تُستخدم كصورة Hero)
+  IconData _iconForTab(String key) {
+    if (key == 'sections') return Icons.list_alt;
+    if (key == 'lessons') return Icons.menu_book;
+    if (key == 'daily_tasks') return Icons.task_alt;
+    if (key == 'workout') return Icons.fitness_center;
+    if (key == 'prayer') return Icons.mosque;
+    if (key == 'fasting') return Icons.nights_stay;
+    return Icons.bookmark;
   }
 
   @override
@@ -93,7 +105,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  //  الشبكة الرئيسية
+  //  الشبكة الرئيسية (مع Hero + Shimmer + شكل عائم)
   // ═══════════════════════════════════════════════════════════════
   Widget _buildGridHome(List<_Tab> tabs, SyncProvider sync) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -106,7 +118,7 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الرئيسية',
+        title: const Text('وقتي',
             style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
@@ -124,6 +136,7 @@ class _MainShellState extends State<MainShell> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ═══ بطاقة الترحيب ═══
             Card(
               color: primary.withValues(alpha: 0.08),
               elevation: 0,
@@ -193,17 +206,18 @@ class _MainShellState extends State<MainShell> {
               ],
             ),
             const SizedBox(height: 12),
+            // ═══ شبكة عائمة (floating cards) ═══
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                childAspectRatio: 0.95,
               ),
               itemCount: tabs.length,
-              itemBuilder: (_, i) => _gridTile(tabs[i]),
+              itemBuilder: (_, i) => _floatingTile(tabs[i], i),
             ),
             const SizedBox(height: 16),
           ],
@@ -212,72 +226,102 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _gridTile(_Tab tab) {
+  Widget _floatingTile(_Tab tab, int index) {
     final primary = Theme.of(context).colorScheme.primary;
-    return Material(
-      color: primary.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _openTab(tab),
-        child: Stack(
-          children: [
-            Positioned(
-              top: 0,
-              right: 0,
-              child: IconButton(
-                icon: const Icon(Icons.more_vert, size: 20),
-                color: Colors.grey[600],
-                tooltip: 'إعدادات التذكير',
-                onPressed: () => _editReminder(context, tab.key, tab.label),
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _openTab(tab, index),
+          child: Stack(
+            children: [
+              // ⋮ إعدادات التذكير
+              Positioned(
+                top: -4,
+                right: -4,
+                child: IconButton(
+                  icon: const Icon(Icons.more_vert, size: 18),
+                  color: Colors.grey[600],
+                  tooltip: 'إعدادات التذكير',
+                  onPressed: () =>
+                      _editReminder(context, tab.key, tab.label),
+                ),
               ),
-            ),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // ═══ Hero Image ═══
+                    ShimmerHeroImage(
+                      imageUrl: '', // أيقونة
+                      heroTag: 'tab_${tab.key}_$index',
+                      size: 52,
+                      fallbackIcon: _iconForTab(tab.key),
                     ),
-                    child: Icon(tab.icon, size: 28, color: primary),
-                  ),
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Text(
-                      tab.label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600),
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Text(
+                        tab.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _openTab(_Tab tab) {
+  void _openTab(_Tab tab, int index) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (ctx) => Scaffold(
           appBar: AppBar(
-            title: Text(tab.label),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            title: Row(
+              children: [
+                // ═══ Hero في صفحة التفاصيل بنفس الـ tag ═══
+                ShimmerHeroImage(
+                  imageUrl: '',
+                  heroTag: 'tab_${tab.key}_$index',
+                  size: 28,
+                  fallbackIcon: _iconForTab(tab.key),
+                ),
+                const SizedBox(width: 8),
+                Text(tab.label),
+              ],
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.notifications_active_outlined),
                 tooltip: 'إعدادات التذكير',
-                onPressed: () => _editReminder(context, tab.key, tab.label),
+                onPressed: () =>
+                    _editReminder(context, tab.key, tab.label),
               ),
               Consumer<SyncProvider>(
                 builder: (_, sync, __) => IconButton(
@@ -328,7 +372,7 @@ class _MainShellState extends State<MainShell> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<ReminderFrequency>(
-                    initialValue: freq, // ✅ تم تصحيحها هنا
+                    initialValue: freq,
                     decoration: const InputDecoration(
                         labelText: 'التكرار', border: OutlineInputBorder()),
                     items: ReminderFrequency.values
@@ -383,8 +427,7 @@ class _MainShellState extends State<MainShell> {
   // ═══════════════════════════════════════════════════════════════
   //  بقية الأنماط
   // ═══════════════════════════════════════════════════════════════
-  Widget _buildBottomBar(
-      List<_Tab> tabs, SyncProvider sync, int idx) {
+  Widget _buildBottomBar(List<_Tab> tabs, SyncProvider sync, int idx) {
     return Scaffold(
       appBar: AppBar(
         title: Text(tabs[idx].label),
@@ -415,8 +458,7 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildTopTabs(
-      List<_Tab> tabs, SyncProvider sync, int idx) {
+  Widget _buildTopTabs(List<_Tab> tabs, SyncProvider sync, int idx) {
     final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(
@@ -506,7 +548,6 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════
   Widget _prayer() => PrayerBody(
         days: user.prayerDays,
         sortMode: user.prayerSortMode,
@@ -543,8 +584,7 @@ class _MainShellState extends State<MainShell> {
   Widget _lessons() =>
       LessonsBody(lessonDays: user.lessonDays, onChanged: _changed);
 
-  Widget _dailyTasks() =>
-      DailyTasksBody(user: user, onChanged: _changed);
+  Widget _dailyTasks() => DailyTasksBody(user: user, onChanged: _changed);
 
   Widget _workout() => WorkoutBody(
         entries: user.workoutEntries,

@@ -57,7 +57,7 @@ class App extends StatelessWidget {
       ],
       child: Consumer<SettingsProvider>(
         builder: (_, s, __) => MaterialApp(
-          title: s.lang == 'ar' ? 'الاتزان والترتيب' : 'Balance & order',
+          title: s.lang == 'ar' ? 'وقتي' : 'My Time',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
