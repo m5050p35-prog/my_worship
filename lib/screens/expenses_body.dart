@@ -20,6 +20,7 @@ class _ExpensesBodyState extends State<ExpensesBody> {
   final _descCtrl = TextEditingController();
   final _amtCtrl = TextEditingController();
   DateTime _selectedDate = DateTime.now();
+  String _selectedCurrency = 'IQD'; // ═══ العملة الافتراضية ═══
   int _viewMode = 0; // 0 = this week, 1 = reports
 
   UserData get user => widget.user;
@@ -39,8 +40,13 @@ class _ExpensesBodyState extends State<ExpensesBody> {
     return list;
   }
 
-  double get _thisWeekTotal =>
-      _thisWeekExpenses.fold(0.0, (s, e) => s + e.amount);
+  double get _thisWeekTotalIQD => _thisWeekExpenses
+      .where((e) => e.currency == 'IQD')
+      .fold(0.0, (s, e) => s + e.amount);
+
+  double get _thisWeekTotalUSD => _thisWeekExpenses
+      .where((e) => e.currency == 'USD')
+      .fold(0.0, (s, e) => s + e.amount);
 
   bool get _reminderEnabled =>
       (user.reminders['expenses']?.enabled) ?? false;
@@ -71,6 +77,13 @@ class _ExpensesBodyState extends State<ExpensesBody> {
   ];
 
   String _fmtDate(DateTime d) => '${d.day} ${_monthsAr[d.month - 1]} ${d.year}';
+
+  String _fmtAmount(double amount, String currency) {
+    if (currency == 'USD') {
+      return '\$${amount.toStringAsFixed(2)}';
+    }
+    return '${amount.toStringAsFixed(0)} د.ع';
+  }
 
   double? _parseAmount(String s) {
     final normalized = s
@@ -110,6 +123,7 @@ class _ExpensesBodyState extends State<ExpensesBody> {
         description: desc,
         amount: amt,
         date: _selectedDate,
+        currency: _selectedCurrency,
       ));
       _descCtrl.clear();
       _amtCtrl.clear();
@@ -220,7 +234,6 @@ class _ExpensesBodyState extends State<ExpensesBody> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // ═══ البانر التمهيدي ═══
         _buildIllustrationBanner(),
         const SizedBox(height: 16),
 
@@ -262,21 +275,30 @@ class _ExpensesBodyState extends State<ExpensesBody> {
                   ],
                 ),
               ),
+              // ═══ الإجماليات (دولار + دينار) ═══
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text(
-                    'الإجمالي',
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                  Text(
-                    _thisWeekTotal.toStringAsFixed(2),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
+                  if (_thisWeekTotalIQD > 0)
+                    Text(
+                      _fmtAmount(_thisWeekTotalIQD, 'IQD'),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: primary,
+                      ),
                     ),
-                  ),
+                  if (_thisWeekTotalUSD > 0)
+                    Text(
+                      _fmtAmount(_thisWeekTotalUSD, 'USD'),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: primary,
+                      ),
+                    ),
+                  if (_thisWeekTotalIQD == 0 && _thisWeekTotalUSD == 0)
+                    const Text('0', style: TextStyle(fontSize: 16)),
                 ],
               ),
             ],
@@ -315,7 +337,6 @@ class _ExpensesBodyState extends State<ExpensesBody> {
         ),
         const SizedBox(height: 16),
 
-        // ═══ نموذج الإضافة ═══
         _buildAddForm(primary),
         const SizedBox(height: 20),
 
@@ -368,7 +389,7 @@ class _ExpensesBodyState extends State<ExpensesBody> {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  //  البانر التمهيدي (صورة توضيحية)
+  //  البانر التمهيدي
   // ═══════════════════════════════════════════════════════════════
   Widget _buildIllustrationBanner() {
     return Container(
@@ -390,7 +411,6 @@ class _ExpensesBodyState extends State<ExpensesBody> {
       ),
       child: Stack(
         children: [
-          // دوائر زخرفية
           Positioned(
             right: -30,
             top: -30,
@@ -415,7 +435,6 @@ class _ExpensesBodyState extends State<ExpensesBody> {
               ),
             ),
           ),
-          // المحتوى
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -446,23 +465,18 @@ class _ExpensesBodyState extends State<ExpensesBody> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.account_balance_wallet,
-                        color: Colors.white,
-                        size: 42,
-                      ),
-                    ),
-                  ],
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet,
+                    color: Colors.white,
+                    size: 42,
+                  ),
                 ),
               ],
             ),
@@ -497,7 +511,6 @@ class _ExpensesBodyState extends State<ExpensesBody> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           const SizedBox(height: 12),
-          // الوصف
           TextField(
             controller: _descCtrl,
             textInputAction: TextInputAction.next,
@@ -509,20 +522,49 @@ class _ExpensesBodyState extends State<ExpensesBody> {
             ),
           ),
           const SizedBox(height: 12),
-          // المبلغ
-          TextField(
-            controller: _amtCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'المبلغ',
-              hintText: '0.00',
-              prefixIcon: Icon(Icons.attach_money),
-              border: OutlineInputBorder(),
-            ),
+          // ═══ المبلغ + العملة ═══
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _amtCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'المبلغ',
+                    hintText: '0',
+                    prefixIcon: Icon(Icons.attach_money),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 1,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _selectedCurrency, // ✅ تم التصحيح هنا
+                  decoration: const InputDecoration(
+                    labelText: 'العملة',
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'IQD', child: Text('د.ع', textAlign: TextAlign.center)),
+                    DropdownMenuItem(
+                        value: 'USD', child: Text('\$', textAlign: TextAlign.center)),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedCurrency = v);
+                  },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          // التاريخ
           InkWell(
             onTap: _pickDate,
             borderRadius: BorderRadius.circular(4),
@@ -550,7 +592,6 @@ class _ExpensesBodyState extends State<ExpensesBody> {
             ),
           ),
           const SizedBox(height: 16),
-          // حفظ
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
@@ -598,10 +639,10 @@ class _ExpensesBodyState extends State<ExpensesBody> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              e.amount.toStringAsFixed(2),
+              _fmtAmount(e.amount, e.currency),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 15,
+                fontSize: 14,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
@@ -618,7 +659,7 @@ class _ExpensesBodyState extends State<ExpensesBody> {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  //  التقارير الأسبوعية
+  //  التقارير
   // ═══════════════════════════════════════════════════════════════
   Widget _buildReports() {
     final grouped = _groupByWeek();
@@ -642,14 +683,17 @@ class _ExpensesBodyState extends State<ExpensesBody> {
       );
     }
 
-    final grandTotal =
-        grouped.fold<double>(0, (s, g) => s + g.total);
+    double grandIQD = 0;
+    double grandUSD = 0;
+    for (var g in grouped) {
+      grandIQD += g.totalIQD;
+      grandUSD += g.totalUSD;
+    }
     final primary = Theme.of(context).colorScheme.primary;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // ملخص عام
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -676,14 +720,24 @@ class _ExpensesBodyState extends State<ExpensesBody> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      grandTotal.toStringAsFixed(2),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                    if (grandIQD > 0)
+                      Text(
+                        _fmtAmount(grandIQD, 'IQD'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+                    if (grandUSD > 0)
+                      Text(
+                        _fmtAmount(grandUSD, 'USD'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -763,14 +817,26 @@ class _ExpensesBodyState extends State<ExpensesBody> {
                     '${w.expenses.length} مصروف • ',
                     style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   ),
-                  Text(
-                    w.total.toStringAsFixed(2),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
+                  if (w.totalIQD > 0)
+                    Text(
+                      _fmtAmount(w.totalIQD, 'IQD'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: primary,
+                      ),
                     ),
-                  ),
+                  if (w.totalIQD > 0 && w.totalUSD > 0)
+                    const Text(' • '),
+                  if (w.totalUSD > 0)
+                    Text(
+                      _fmtAmount(w.totalUSD, 'USD'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: primary,
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -786,7 +852,7 @@ class _ExpensesBodyState extends State<ExpensesBody> {
               style: TextStyle(fontSize: 10, color: Colors.grey[600]),
             ),
             trailing: Text(
-              e.amount.toStringAsFixed(2),
+              _fmtAmount(e.amount, e.currency),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
@@ -811,5 +877,11 @@ class _WeekGroup {
     required this.expenses,
   });
 
-  double get total => expenses.fold(0.0, (s, e) => s + e.amount);
+  double get totalIQD => expenses
+      .where((e) => e.currency == 'IQD')
+      .fold(0.0, (s, e) => s + e.amount);
+
+  double get totalUSD => expenses
+      .where((e) => e.currency == 'USD')
+      .fold(0.0, (s, e) => s + e.amount);
 }
