@@ -24,7 +24,6 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: Text(t.t('settings'))),
       body: ListView(
         children: [
-          // ═══ المظهر ═══
           const _Header('المظهر'),
           SwitchListTile(
             title: Text(t.t('dark_mode')),
@@ -47,7 +46,6 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
-          // ═══ نمط العرض ═══
           const Divider(),
           const _Header('نمط عرض التبويبات'),
           ...TabViewMode.values.map((m) {
@@ -55,8 +53,7 @@ class SettingsScreen extends StatelessWidget {
             return ListTile(
               leading: Icon(_iconForViewMode(m)),
               title: Text(m.label),
-              subtitle:
-                  Text(m.hint, style: const TextStyle(fontSize: 12)),
+              subtitle: Text(m.hint, style: const TextStyle(fontSize: 12)),
               trailing: Icon(
                 selected
                     ? Icons.radio_button_checked
@@ -67,18 +64,13 @@ class SettingsScreen extends StatelessWidget {
             );
           }),
 
-          // ═══ التبويبات الأساسية ═══
+          // ═══ التبويبات (بدون الأقسام) ═══
           const Divider(),
           const _Header('التبويبات الأساسية'),
           SwitchListTile(
             title: Text(t.t('prayer')),
             value: s.showPrayer,
             onChanged: s.setShowPrayer,
-          ),
-          SwitchListTile(
-            title: Text(t.t('sections')),
-            value: s.showSections,
-            onChanged: s.setShowSections,
           ),
           SwitchListTile(
             title: const Text('الدروس'),
@@ -93,6 +85,12 @@ class SettingsScreen extends StatelessWidget {
             secondary: const Icon(Icons.task_alt),
           ),
           SwitchListTile(
+            title: const Text('المصرف الأسبوعي'),
+            value: s.showExpenses,
+            onChanged: s.setShowExpenses,
+            secondary: const Icon(Icons.account_balance_wallet),
+          ),
+          SwitchListTile(
             title: Text(t.t('workout')),
             value: s.showWorkout,
             onChanged: s.setShowWorkout,
@@ -101,34 +99,6 @@ class SettingsScreen extends StatelessWidget {
             title: Text(t.t('fasting')),
             value: s.showFasting,
             onChanged: s.setShowFasting,
-          ),
-          ListTile(
-            title: const Text('اسم تبويب الأقسام'),
-            subtitle: Text(s.sectionsTabLabel),
-            trailing: const Icon(Icons.edit),
-            onTap: () async {
-              final c = TextEditingController(text: s.sectionsTabLabel);
-              final r = await showDialog<String>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('اسم التبويب'),
-                  content: TextField(controller: c),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('إلغاء'),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(context, c.text),
-                      child: const Text('حفظ'),
-                    ),
-                  ],
-                ),
-              );
-              if (r != null && r.trim().isNotEmpty) {
-                s.setSectionsLabel(r.trim());
-              }
-            },
           ),
 
           // ═══ التبويبات المخصصة ═══
@@ -149,7 +119,6 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
 
-          // ═══ الإشعارات ═══
           const Divider(),
           const _Header('الإشعارات'),
           SwitchListTile(
@@ -192,7 +161,6 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => NotificationService.showTest(),
           ),
 
-          // ═══ المزامنة ═══
           const Divider(),
           const _Header('المزامنة'),
           ListTile(

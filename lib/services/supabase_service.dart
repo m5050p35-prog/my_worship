@@ -68,6 +68,10 @@ class SupabaseService {
         .map((e) => DailyTaskDay.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
+    final rawExpenses = (row['expenses_data'] as List? ?? [])
+        .map((e) => Expense.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+
     final rawReminders = (row['reminders_data'] as Map? ?? {}).map((k, v) =>
         MapEntry(k.toString(),
             ReminderConfig.fromJson(Map<String, dynamic>.from(v as Map))));
@@ -83,6 +87,7 @@ class SupabaseService {
       dailyTasksStartDate: (row['daily_tasks_start_date'] ?? '') as String,
       dailyTaskDays: rawDaily,
       reminders: rawReminders,
+      expenses: rawExpenses,
       prayerDays: (results[0] as List)
           .map((e) => PrayerDay.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
@@ -122,6 +127,7 @@ class SupabaseService {
         'custom_tabs_data': u.customTabs.map((e) => e.toJson()).toList(),
         'lessons_data': u.lessonDays.map((e) => e.toJson()).toList(),
         'daily_tasks_data': u.dailyTaskDays.map((e) => e.toJson()).toList(),
+        'expenses_data': u.expenses.map((e) => e.toJson()).toList(),
         'daily_tasks_start_date': u.dailyTasksStartDate,
         'reminders_data': u.reminders.map((k, v) => MapEntry(k, v.toJson())),
         'prayer_sort_mode': u.prayerSortMode.name,

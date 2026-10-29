@@ -120,6 +120,35 @@ class NotificationService {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  تذكير المصرف اليومي (9 مساءً)
+  // ═══════════════════════════════════════════════════════════════
+  static Future<void> scheduleExpenseDaily(bool enabled) async {
+    await init();
+    await _plugin.cancel(800);
+    if (!enabled) return;
+
+    await _plugin.zonedSchedule(
+      800,
+      'تذكير المصرف اليومي',
+      'لا تنسَ تسجيل مصاريف اليوم',
+      _nextInstance(21, 0),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'expense_daily',
+          'تذكير المصرف',
+          channelDescription: 'تذكير يومي بتسجيل المصاريف عند 9 مساءً',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
   static Future<void> cancelAll() async {
     await init();
     await _plugin.cancelAll();

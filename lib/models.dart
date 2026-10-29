@@ -104,6 +104,46 @@ class ReminderConfig {
       );
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  Expense
+// ═══════════════════════════════════════════════════════════════
+class Expense {
+  final String id;
+  final String description;
+  final double amount;
+  final DateTime date;
+
+  Expense({
+    required this.id,
+    required this.description,
+    required this.amount,
+    required this.date,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'description': description,
+        'amount': amount,
+        'date': date.toIso8601String().substring(0, 10),
+      };
+
+  factory Expense.fromJson(Map<String, dynamic> j) => Expense(
+        id: j['id'] ?? '',
+        description: j['description'] ?? '',
+        amount: (j['amount'] as num?)?.toDouble() ?? 0.0,
+        date: DateTime.tryParse(j['date'] ?? '') ?? DateTime.now(),
+      );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Helper: بداية الأسبوع = الجمعة
+// ═══════════════════════════════════════════════════════════════
+DateTime fridayOfWeek(DateTime d) {
+  // Dart weekday: Mon=1, Tue=2, ..., Fri=5, Sat=6, Sun=7
+  final diff = (d.weekday - 5 + 7) % 7;
+  return DateTime(d.year, d.month, d.day).subtract(Duration(days: diff));
+}
+
 class DailyTask {
   final String id;
   String title;
@@ -575,6 +615,8 @@ class UserData {
   List<DailyTaskDay> dailyTaskDays;
   Map<String, ReminderConfig> reminders;
 
+  List<Expense> expenses;
+
   List<PrayerDay> prayerDays;
   List<Section> sections;
   List<CustomTab> customTabs;
@@ -595,6 +637,7 @@ class UserData {
     this.dailyTasksStartDate = '',
     List<DailyTaskDay>? dailyTaskDays,
     Map<String, ReminderConfig>? reminders,
+    List<Expense>? expenses,
     List<PrayerDay>? prayerDays,
     List<Section>? sections,
     List<CustomTab>? customTabs,
@@ -605,6 +648,7 @@ class UserData {
     FastingConfig? fastingConfig,
   })  : dailyTaskDays = dailyTaskDays ?? [],
         reminders = reminders ?? {},
+        expenses = expenses ?? [],
         prayerDays = prayerDays ?? [],
         sections = sections ?? [],
         customTabs = customTabs ?? [],
@@ -633,6 +677,7 @@ class UserData {
         'daily_tasks_start_date': dailyTasksStartDate,
         'daily_task_days': dailyTaskDays.map((e) => e.toJson()).toList(),
         'reminders': reminders.map((k, v) => MapEntry(k, v.toJson())),
+        'expenses': expenses.map((e) => e.toJson()).toList(),
         'prayer_days': prayerDays.map((e) => e.toJson()).toList(),
         'sections': sections.map((e) => e.toJson()).toList(),
         'custom_tabs': customTabs.map((e) => e.toJson()).toList(),

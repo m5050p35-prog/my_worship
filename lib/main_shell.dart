@@ -10,12 +10,12 @@ import 'services/notification_service.dart';
 import 'widgets/app_drawer.dart';
 import 'widgets/shimmer_image.dart';
 import 'screens/prayer_body.dart';
-import 'screens/sections_body.dart';
 import 'screens/workout_body.dart';
 import 'screens/fasting_body.dart';
 import 'screens/custom_tab_body.dart';
 import 'screens/lessons_body.dart';
 import 'screens/daily_tasks_body.dart';
+import 'screens/expenses_body.dart';
 import 'duration_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -42,11 +42,10 @@ class _MainShellState extends State<MainShell> {
     setState(() => _index = i);
   }
 
-  // أيقونة لكل تبويب (تُستخدم كصورة Hero)
   IconData _iconForTab(String key) {
-    if (key == 'sections') return Icons.list_alt;
     if (key == 'lessons') return Icons.menu_book;
     if (key == 'daily_tasks') return Icons.task_alt;
+    if (key == 'expenses') return Icons.account_balance_wallet;
     if (key == 'workout') return Icons.fitness_center;
     if (key == 'prayer') return Icons.mosque;
     if (key == 'fasting') return Icons.nights_stay;
@@ -59,13 +58,17 @@ class _MainShellState extends State<MainShell> {
     final s = context.watch<SettingsProvider>();
     final sync = context.watch<SyncProvider>();
 
+    // ═══════════════════════════════════════════════════════════════
+    //  التبويبات (بدون الأقسام - أُضيف المصرف)
+    // ═══════════════════════════════════════════════════════════════
     final tabs = <_Tab>[
-      if (s.showSections)
-        _Tab('sections', s.sectionsTabLabel, Icons.list_alt, _sections()),
       if (s.showLessons)
         _Tab('lessons', 'الدروس', Icons.menu_book, _lessons()),
       if (s.showDailyTasks)
         _Tab('daily_tasks', 'المهام اليومية', Icons.task_alt, _dailyTasks()),
+      if (s.showExpenses)
+        _Tab('expenses', 'المصرف الأسبوعي', Icons.account_balance_wallet,
+            _expenses()),
       if (s.showWorkout)
         _Tab('workout', t.t('workout'), Icons.fitness_center, _workout()),
       for (final ct in user.customTabs.where((e) => e.enabled))
@@ -105,7 +108,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  //  الشبكة الرئيسية (مع Hero + Shimmer + شكل عائم)
+  //  الشبكة الرئيسية
   // ═══════════════════════════════════════════════════════════════
   Widget _buildGridHome(List<_Tab> tabs, SyncProvider sync) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -136,7 +139,6 @@ class _MainShellState extends State<MainShell> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ═══ بطاقة الترحيب ═══
             Card(
               color: primary.withValues(alpha: 0.08),
               elevation: 0,
@@ -206,7 +208,6 @@ class _MainShellState extends State<MainShell> {
               ],
             ),
             const SizedBox(height: 12),
-            // ═══ شبكة عائمة (floating cards) ═══
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -248,7 +249,6 @@ class _MainShellState extends State<MainShell> {
           onTap: () => _openTab(tab, index),
           child: Stack(
             children: [
-              // ⋮ إعدادات التذكير
               Positioned(
                 top: -4,
                 right: -4,
@@ -264,9 +264,8 @@ class _MainShellState extends State<MainShell> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // ═══ Hero Image ═══
                     ShimmerHeroImage(
-                      imageUrl: '', // أيقونة
+                      imageUrl: '',
                       heroTag: 'tab_${tab.key}_$index',
                       size: 52,
                       fallbackIcon: _iconForTab(tab.key),
@@ -305,7 +304,6 @@ class _MainShellState extends State<MainShell> {
             ),
             title: Row(
               children: [
-                // ═══ Hero في صفحة التفاصيل بنفس الـ tag ═══
                 ShimmerHeroImage(
                   imageUrl: '',
                   heroTag: 'tab_${tab.key}_$index',
@@ -578,13 +576,12 @@ class _MainShellState extends State<MainShell> {
         },
       );
 
-  Widget _sections() =>
-      SectionsBody(sections: user.sections, onChanged: _changed);
-
   Widget _lessons() =>
       LessonsBody(lessonDays: user.lessonDays, onChanged: _changed);
 
   Widget _dailyTasks() => DailyTasksBody(user: user, onChanged: _changed);
+
+  Widget _expenses() => ExpensesBody(user: user, onChanged: _changed);
 
   Widget _workout() => WorkoutBody(
         entries: user.workoutEntries,

@@ -51,9 +51,13 @@ class Storage {
         .map((e) => DailyTaskDay.fromJson(Map<String, dynamic>.from(e)))
         .toList();
 
-    final rawReminders = (j['reminders'] as Map? ?? {}).map((k, v) => MapEntry(
-        k.toString(),
-        ReminderConfig.fromJson(Map<String, dynamic>.from(v as Map))));
+    final rawReminders = (j['reminders'] as Map? ?? {}).map((k, v) =>
+        MapEntry(k.toString(),
+            ReminderConfig.fromJson(Map<String, dynamic>.from(v as Map))));
+
+    final rawExpenses = (j['expenses'] as List? ?? [])
+        .map((e) => Expense.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
 
     return UserData(
       id: j['id'],
@@ -66,6 +70,7 @@ class Storage {
       dailyTasksStartDate: j['daily_tasks_start_date'] ?? '',
       dailyTaskDays: rawDaily,
       reminders: rawReminders,
+      expenses: rawExpenses,
       prayerDays: (j['prayer_days'] as List? ?? [])
           .map((e) => PrayerDay.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
