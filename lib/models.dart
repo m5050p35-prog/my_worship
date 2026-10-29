@@ -105,19 +105,21 @@ class ReminderConfig {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Expense
+//  Expense (تمت إضافة العملة)
 // ═══════════════════════════════════════════════════════════════
 class Expense {
   final String id;
   final String description;
   final double amount;
   final DateTime date;
+  final String currency; // 'IQD' or 'USD'
 
   Expense({
     required this.id,
     required this.description,
     required this.amount,
     required this.date,
+    this.currency = 'IQD',
   });
 
   Map<String, dynamic> toJson() => {
@@ -125,6 +127,7 @@ class Expense {
         'description': description,
         'amount': amount,
         'date': date.toIso8601String().substring(0, 10),
+        'currency': currency,
       };
 
   factory Expense.fromJson(Map<String, dynamic> j) => Expense(
@@ -132,14 +135,11 @@ class Expense {
         description: j['description'] ?? '',
         amount: (j['amount'] as num?)?.toDouble() ?? 0.0,
         date: DateTime.tryParse(j['date'] ?? '') ?? DateTime.now(),
+        currency: j['currency'] ?? 'IQD',
       );
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  Helper: بداية الأسبوع = الجمعة
-// ═══════════════════════════════════════════════════════════════
 DateTime fridayOfWeek(DateTime d) {
-  // Dart weekday: Mon=1, Tue=2, ..., Fri=5, Sat=6, Sun=7
   final diff = (d.weekday - 5 + 7) % 7;
   return DateTime(d.year, d.month, d.day).subtract(Duration(days: diff));
 }
